@@ -9,61 +9,62 @@ conexion = sqlite3.connect(db_path)
 cursor = conexion.cursor()
 
 
+cursor = conexion.cursor()
+
 # Crear un grafo RDF
 g = Graph()
-namespace = Namespace("http://example.org/ontologia/")
-g.bind("ex", namespace)
 
-# Obtener todas las tablas de la base de datos
+# Definir el espacio de nombres
+namespace = URIRef("http://example.org/")
+
+# Consultar las tablas en la base de datos
 cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-tablas = [tabla[0] for tabla in cursor.fetchall()]
+tablas = cursor.fetchall()
 
-# Función para convertir nombres en formato URI amigable
-def formatear_uri(nombre):
-    return nombre.replace(" ", "_").replace(".", "_").lower()
-
-# Procesar cada tabla
+# Iterar sobre todas las tablas
 for tabla in tablas:
-    # Crear una clase OWL para la tabla
-    clase_uri = namespace[formatear_uri(tabla)]
-    g.add((clase_uri, RDF.type, OWL.Class))
-    g.add((clase_uri, RDFS.label, Literal(tabla)))
+    tabla_nombre = tabla[0]
 
-    # Obtener columnas de la tabla
-    cursor.execute(f"PRAGMA table_info({tabla});")
+    # Definir una clase para cada tabla
+    clase = URIRef(namespace + tabla_nombre)
+    g.add((clase, RDF.type, RDFS.Class))
+
+    # Obtener las columnas de la tabla (información sobre el esquema)
+    cursor.execute(f"PRAGMA table_info({tabla_nombre});")
     columnas = cursor.fetchall()
 
-    # Crear propiedades para cada columna
+    # Definir las propiedades para cada columna
     for columna in columnas:
-        nombre_columna = columna[1]
-        propiedad_uri = namespace[formatear_uri(nombre_columna)]
-        g.add((propiedad_uri, RDF.type, OWL.DatatypeProperty))
-        g.add((propiedad_uri, RDFS.label, Literal(nombre_columna)))
-        g.add((propiedad_uri, RDFS.domain, clase_uri))
-        g.add((propiedad_uri, RDFS.range, RDFS.Literal))
+        columna_nombre = columna[1]  # El nombre de la columna
+        propiedad = URIRef(namespace + columna_nombre)
 
-    # Verificar claves foráneas para crear relaciones
-    cursor.execute(f"PRAGMA foreign_key_list({tabla});")
-    claves_foraneas = cursor.fetchall()
+        # Agregar la propiedad al grafo RDF
+        g.add((propiedad, RDF.type, RDF.Property))
+        g.add((propiedad, RDFS.domain, clase))  # Relacionamos la propiedad con la clase
+        g.add((propiedad, RDFS.range, RDFS.Literal))  # Tipo de los valores es literal (puedes hacer ajustes si tienes otros tipos)
 
-    for clave in claves_foraneas:
-        columna_origen = clave[3]
-        tabla_destino = clave[2]
-        columna_destino = clave[4]
+    # Obtener los datos de la tabla y agregar las instancias (filas) al grafo
+    cursor.execute(f"SELECT * FROM {tabla_nombre}")
+    filas = cursor.fetchall()
 
-        # Crear una propiedad de objeto para la relación
-        relacion_uri = namespace[f"{formatear_uri(tabla)}_{formatear_uri(tabla_destino)}"]
-        g.add((relacion_uri, RDF.type, OWL.ObjectProperty))
-        g.add((relacion_uri, RDFS.label, Literal(f"{tabla} -> {tabla_destino}")))
-        g.add((relacion_uri, RDFS.domain, clase_uri))
-        g.add((relacion_uri, RDFS.range, namespace[formatear_uri(tabla_destino)]))
+    for fila in filas:
+        # Crear una URI única para la instancia (usando el nombre de la tabla y el id de la fila, si existe)
+        instancia_uri = URIRef(namespace + f"{tabla_nombre}/{fila[0]}")  # Usamos el primer valor de la fila como ID si existe
+        g.add((instancia_uri, RDF.type, clase))
 
-# Guardar la ontología en un archivo Turtle (.ttl)
+        # Agregar las propiedades y valores de la fila
+        for i, columna in enumerate(columnas):
+            columna_nombre = columna[1]
+            valor = fila[i]
+            if valor is not None:
+                g.add((instancia_uri, URIRef(namespace + columna_nombre), Literal(valor)))
+
+# Guardar la ontología RDF en un archivo Turtle y lo imprime
 output_file = nombre_archivo
 g.serialize(destination=output_file, format='turtle')
 print(f"Ontología generada y guardada en: {output_file}")
 print("Contenido:")
 print(g.serialize(format="turtle"))
 
-# Cerrar la conexión
+# Cerrar la conexión a la base de datos
 conexion.close()
