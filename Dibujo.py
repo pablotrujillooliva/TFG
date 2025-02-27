@@ -4,7 +4,7 @@ from rdflib.namespace import XSD
 from graphviz import Digraph  # Para dibujar el grafo
 
 # Conectar a la base de datos SQLite
-db_file = r'C:\Users\pablo\Documents\TFG\Proyect\TFG\dbs\northwind.db' # Cambia esto al archivo de tu base de datos
+db_file = r'C:\Users\pablo\Documents\TFG\Proyect\TFG\dbs\chinook.db' # Cambia esto al archivo de tu base de datos
 conn = sqlite3.connect(db_file)
 cursor = conn.cursor()
 
