@@ -3,7 +3,7 @@ from rdflib import Graph, Namespace, Literal, RDF, URIRef
 from rdflib.namespace import XSD
 
     # 🔹 Archivo del esquema generado previamente
-def cargar_datos(esquema_previo):
+def cargar_datos(esquema_previo, base_datos):
     esquema_file = esquema_previo
 
     # 🔹 Cargar el esquema RDF existente
@@ -11,7 +11,7 @@ def cargar_datos(esquema_previo):
     g.parse(esquema_file, format='turtle')
 
     # 🔹 Conectar a la base de datos SQLite
-    db_file = r'C:\Users\pablo\Documents\TFG\Proyect\TFG\dbs\chinook.db'
+    db_file = base_datos
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
 

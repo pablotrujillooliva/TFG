@@ -8,7 +8,7 @@ def main(db_path):
     base_datos = db_path
     esquema_previo = ER.ejecutar(base_datos)
     dibujo_esquema = Dibujo.dibujar_grafo(base_datos)
-    carga_datos = Carga.cargar_datos(esquema_previo)
+    carga_datos = Carga.cargar_datos(esquema_previo, base_datos)
     return esquema_previo, dibujo_esquema, carga_datos
 
 if __name__ == "__main__":
