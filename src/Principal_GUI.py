@@ -4,7 +4,7 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import os
 import glob
-import Principal
+import Principal as Principal
 
 class RDFApp:
     def __init__(self, root):
@@ -18,10 +18,12 @@ class RDFApp:
         self.frame1 = ttk.Frame(self.notebook)
         self.frame2 = ttk.Frame(self.notebook)
         self.frame3 = ttk.Frame(self.notebook)
+        self.frame4 = ttk.Frame(self.notebook)  # Nuevo frame para ver JSON
 
         self.notebook.add(self.frame1, text='Generar RDF')
         self.notebook.add(self.frame2, text='Ver Imagen')
         self.notebook.add(self.frame3, text='Ver TTL')
+        self.notebook.add(self.frame4, text='Ver JSON')  # Añadir el nuevo frame al notebook
 
         self.label = tk.Label(self.frame1, text="Base de datos:")
         self.label.pack(pady=5)
@@ -72,6 +74,23 @@ class RDFApp:
 
         self.generated_ttl_files = []
 
+        # Widget para mostrar el contenido del archivo JSON
+        self.json_text = tk.Text(self.frame4, wrap=tk.NONE)
+        self.json_text.pack(expand=1, fill='both')
+
+        self.json_scroll_x = tk.Scrollbar(self.frame4, orient=tk.HORIZONTAL, command=self.json_text.xview)
+        self.json_scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
+        self.json_scroll_y = tk.Scrollbar(self.frame4, orient=tk.VERTICAL, command=self.json_text.yview)
+        self.json_scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.json_text.configure(xscrollcommand=self.json_scroll_x.set, yscrollcommand=self.json_scroll_y.set)
+
+        self.json_combobox = ttk.Combobox(self.frame4)
+        self.json_combobox.pack(pady=5)
+        self.json_combobox.bind("<<ComboboxSelected>>", self.load_selected_json)
+
+        self.generated_json_files = []
+
     def browse_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("Database Files", "*.db")])
         if file_path:
@@ -89,6 +108,8 @@ class RDFApp:
             self.show_image('rdf_graph_output_square.png')
             self.generated_ttl_files = glob.glob("*.ttl")  # Almacenar los archivos .ttl generados
             self.ttl_combobox['values'] = self.generated_ttl_files  # Actualizar el combobox con los archivos .ttl generados
+            self.generated_json_files = glob.glob("*.json")
+            self.json_combobox['values'] = self.generated_json_files
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
 
@@ -115,10 +136,19 @@ class RDFApp:
     def load_selected_ttl(self, event):
         selected_file = self.ttl_combobox.get()
         if selected_file:
-            with open(selected_file, 'r', encoding='utf-8') as file:
+            file_path = os.path.join("TFG", "data", selected_file)
+            with open(file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
                 self.ttl_text.delete(1.0, tk.END)
                 self.ttl_text.insert(tk.END, content)
+
+    def load_selected_json(self, event):
+        selected_file = self.json_combobox.get()
+        if selected_file:
+            with open(selected_file, 'r', encoding='utf-8') as file:
+                content = file.read()
+                self.json_text.delete(1.0, tk.END)
+                self.json_text.insert(tk.END, content)
 
     def start_pan(self, event):
         self.canvas.scan_mark(event.x, event.y)

@@ -1,6 +1,7 @@
 import rdflib
 import json
 import sys
+import os
 from rdflib.namespace import RDF, RDFS, OWL, XSD
 
 def iri_short(iri):
@@ -105,9 +106,14 @@ def main(ttl_file, json_file):
         "propertyAttribute": property_attrs
     }
 
-    with open(json_file, "w", encoding="utf-8") as f:
+    # Crear carpeta si no existe
+    output_dir = os.path.join('TFG', 'data')
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, os.path.basename(json_file))
+
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    print(f"Archivo JSON generado: {json_file}")
+    print(f"¡Los datos se han pasado correctamente al formato JSON correcto en '{output_path}'!")
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:

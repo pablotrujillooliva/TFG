@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from rdflib import Graph, Namespace, Literal, RDF, RDFS, OWL, XSD
 
 # === CONFIGURACIÓN ===
@@ -116,9 +117,12 @@ def ejecutar(base_datos):
             create_object_properties(g, table, foreign_keys)
 
         # Guardar el RDF en un archivo Turtle (.ttl) con indentación y comentarios
-        g.serialize(destination=OUTPUT_FILE, format='turtle')
-        print(f"¡Tríplex ontológico generado en '{OUTPUT_FILE}' con formato legible!")
-        return OUTPUT_FILE
+        output_dir = os.path.join('TFG', 'data')
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, 'Estructura.ttl')
+        g.serialize(destination=output_file, format='turtle')
+        print(f"¡Tríplex ontológico generado en '{output_file}' con formato legible!")
+        return output_file
     
     return main()
 

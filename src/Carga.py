@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from rdflib import Graph, Namespace, Literal, RDF, URIRef
 from rdflib.namespace import XSD
 
@@ -67,7 +68,9 @@ def cargar_datos(esquema_previo, base_datos):
                     g.add((instance_uri, prop_uri, Literal(value, datatype=XSD.string)))
 
     # 🔹 Guardar el RDF con datos en un archivo Turtle
-    output_file = 'datos_ontologia.ttl'
+    output_dir = os.path.join('TFG', 'data')
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, 'datos_ontologia.ttl')
     g.serialize(destination=output_file, format='turtle')
 
     print(f"¡La ontología con datos ha sido generada en '{output_file}'!")
