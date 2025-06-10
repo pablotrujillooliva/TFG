@@ -3,6 +3,14 @@ import ER as ER
 import Dibujo as Dibujo
 import Carga as Carga
 import ttl_transform_webVOWL as ttl_transform_webVOWL
+import os
+
+# Ruta absoluta a la carpeta data en la raíz del proyecto
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
+
+output_file = os.path.join(DATA_DIR, 'datos_ontologia.ttl')
 
 def main(db_path):
     print("Ejecutando Principal.py")
@@ -14,4 +22,9 @@ def main(db_path):
     return esquema_previo, dibujo_esquema, carga_datos, webVOWL_trans
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) < 2:
+        print("Uso: python Principal.py <ruta_base_de_datos>")
+        sys.exit(1)
+    db_path = sys.argv[1]
+    main(db_path)

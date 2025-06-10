@@ -4,7 +4,7 @@ from rdflib import Graph, Namespace, Literal, RDF, RDFS, OWL, XSD
 
 # === CONFIGURACIÓN ===
 # DB_FILE = r'C:\Users\pablo\Documents\TFG\Proyect\TFG\dbs\chinook.db'  # Cambia esto al archivo de tu base de datos
-# OUTPUT_FILE = 'ontology_output_legible.ttl'  # Archivo de salida RDF
+
 
 def ejecutar(base_datos):
     print("Ejecutando ER.py")
@@ -116,12 +116,13 @@ def ejecutar(base_datos):
             create_data_properties(g, table, columns)
             create_object_properties(g, table, foreign_keys)
 
-        # Guardar el RDF en un archivo Turtle (.ttl) con indentación y comentarios
-        output_dir = os.path.join('TFG', 'data')
-        os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, 'Estructura.ttl')
+        # Guardar el RDF en un archivo Turtle (.ttl) y lo hace desde la raíz del proyecto
+        BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        DATA_DIR = os.path.join(BASE_DIR, 'data')
+        os.makedirs(DATA_DIR, exist_ok=True)
+        output_file = os.path.join(DATA_DIR, 'Estructura.ttl')
         g.serialize(destination=output_file, format='turtle')
-        print(f"¡Tríplex ontológico generado en '{output_file}' con formato legible!")
+        print(f"Tríplex ontológico generado en '{output_file}' con formato legible")
         return output_file
     
     return main()

@@ -4,8 +4,14 @@ from rdflib import Graph, Namespace, Literal, RDF, RDFS, URIRef
 from rdflib.namespace import XSD
 from graphviz import Digraph  # Para dibujar el grafo
 
+# Ruta absoluta a la carpeta data en la raíz del proyecto
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
+
 # Conectar a la base de datos 
 def dibujar_grafo(base_datos):
+    print("Iniciando la generación del grafo RDF...")
     db_file = base_datos # Cambia esto al archivo de tu base de datos
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
@@ -88,12 +94,10 @@ def dibujar_grafo(base_datos):
             dot.edge(safe_table_name, safe_column_name, label=f"hasColumn")
 
     # Guardar el grafo en un archivo
-    output_dir = os.path.join('TFG', 'data')
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, 'rdf_graph_output_square')
+    output_file = os.path.join(DATA_DIR, 'rdf_graph_output_square')
     dot.render(output_file, format='png')
 
-    print(f"¡El grafo RDF ha sido generado en '{output_file}.png'!")
+    print(f"El grafo RDF ha sido generado en '{output_file}.png'")
 
 if __name__ == "__main__":
     pass

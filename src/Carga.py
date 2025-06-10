@@ -3,8 +3,14 @@ import os
 from rdflib import Graph, Namespace, Literal, RDF, URIRef
 from rdflib.namespace import XSD
 
-    # 🔹 Archivo del esquema generado previamente
+# Ruta absoluta a la carpeta data en la raíz del proyecto
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# 🔹 Archivo del esquema generado previamente
 def cargar_datos(esquema_previo, base_datos):
+    print("Ejecutando Carga.py")
     esquema_file = esquema_previo
 
     # 🔹 Cargar el esquema RDF existente
@@ -68,12 +74,10 @@ def cargar_datos(esquema_previo, base_datos):
                     g.add((instance_uri, prop_uri, Literal(value, datatype=XSD.string)))
 
     # 🔹 Guardar el RDF con datos en un archivo Turtle
-    output_dir = os.path.join('TFG', 'data')
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, 'datos_ontologia.ttl')
+    output_file = os.path.join(DATA_DIR, 'datos_ontologia.ttl')
     g.serialize(destination=output_file, format='turtle')
 
-    print(f"¡La ontología con datos ha sido generada en '{output_file}'!")
+    print(f"La ontología con datos ha sido generada en '{output_file}'")
     return output_file
 
 if __name__ == "__main__":
