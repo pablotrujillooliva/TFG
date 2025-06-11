@@ -9,7 +9,6 @@ from rdflib import Graph, Namespace, Literal, RDF, RDFS, OWL, XSD
 def ejecutar(base_datos):
     print("Ejecutando ER.py")
     DB_FILE = base_datos
-    OUTPUT_FILE = 'Estructura.ttl'
     # Namespaces globales
     BASE_NS = Namespace("http://example.org/db#")
     RDF_NS = Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
@@ -116,7 +115,7 @@ def ejecutar(base_datos):
             create_data_properties(g, table, columns)
             create_object_properties(g, table, foreign_keys)
 
-        # Guardar el RDF en un archivo Turtle (.ttl) y lo hace desde la raíz del proyecto
+        # Guardar el RDF en un archivo Turtle (.ttl) y lo hace desde la ra
         BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         DATA_DIR = os.path.join(BASE_DIR, 'data')
         os.makedirs(DATA_DIR, exist_ok=True)
