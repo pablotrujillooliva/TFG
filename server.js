@@ -71,11 +71,15 @@ app.get('/', (req, res) => {
     // Añade la sección de Cytoscape.js
     html += `
 <h2>Visualización interactiva (Cytoscape.js)</h2>
-<label for="grafoSelect">Selecciona el grafo a visualizar:</label>
+<label for="tablaSelect">Selecciona la tabla a visualizar:</label>
+<select id="tablaSelect"></select>
+<label for="grafoSelect" style="margin-left:2em;">Selecciona el grafo:</label>
 <select id="grafoSelect">
-  <option value="grafo.json">Estructura (grafo.json)</option>
-  <option value="grafo_datos.json">Datos reales (grafo_datos.json)</option>
+  ${jsonFiles.map(f => `<option value="${f}">${f}</option>`).join('')}
 </select>
+<label for="elementoSelect" style="margin-left:2em;">Selecciona el elemento:</label>
+<select id="elementoSelect"></select>
+<button id="btnVerElemento">Ver relacionados</button>
 <div>
   <button id="btnExpandir">Expandir nodo seleccionado</button>
   <button id="btnMas">Mostrar más relacionados</button>
@@ -87,131 +91,226 @@ app.get('/', (req, res) => {
 <script>
 let allElements = [];
 let cy = null;
-let nodosVisibles = new Set();
-let nodoCentral = null;
+let tablasDisponibles = [];
+let tablaActual = null;
 let nodoSeleccionado = null;
+let nodosVisibles = new Set();
+
+// Extrae los nombres de tabla de los nodos
+function extraerTablas() {
+  const tablasSet = new Set();
+  allElements.forEach(e => {
+    if (e.data && e.data.label) {
+      // Extrae lo que va antes de los dos puntos
+      const tabla = String(e.data.label).split(':')[0].trim();
+      tablasSet.add(tabla);
+    }
+  });
+  tablasDisponibles = Array.from(tablasSet);
+}
+
+function actualizarSelectorTablas() {
+  const tablaSel = document.getElementById('tablaSelect');
+  tablaSel.innerHTML = '';
+  tablasDisponibles.forEach(tabla => {
+    const opt = document.createElement('option');
+    opt.value = tabla;
+    opt.textContent = tabla;
+    tablaSel.appendChild(opt);
+  });
+  tablaActual = tablaSel.value;
+  actualizarSelectorElementos(); // <- Esto está bien
+}
+
+function actualizarSelectorElementos() {
+  const elementoSel = document.getElementById('elementoSelect');
+  elementoSel.innerHTML = '';
+  // Solo nodos de la tabla seleccionada
+  const nodosTabla = allElements.filter(e =>
+    e.data && e.data.label && String(e.data.label).split(':')[0].trim() === tablaActual
+  );
+  nodosTabla.forEach(nodo => {
+    const opt = document.createElement('option');
+    opt.value = nodo.data.id;
+    opt.textContent = nodo.data.label;
+    elementoSel.appendChild(opt);
+  });
+}
+
+function mostrarTablaSeleccionada() {
+  // Solo nodos cuya tabla coincida exactamente con la seleccionada
+  const nodosTabla = allElements.filter(e =>
+    e.data && e.data.label && String(e.data.label).split(':')[0].trim() === tablaActual
+  );
+  const idsTabla = new Set(nodosTabla.map(e => e.data.id));
+  const edgesTabla = allElements.filter(e =>
+    e.data && e.data.source && e.data.target &&
+    idsTabla.has(e.data.source) && idsTabla.has(e.data.target)
+  );
+  const elementosMostrar = [...nodosTabla, ...edgesTabla];
+
+  nodosVisibles = new Set(nodosTabla.map(e => e.data.id)); // Inicializa nodos visibles
+
+  if (cy) cy.destroy();
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements: elementosMostrar,
+    style: [
+      { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#0074D9' } },
+      { selector: 'edge', style: { 'label': 'data(label)', 'width': 2, 'line-color': '#aaa' } }
+    ],
+    layout: { name: 'cose' }
+  });
+
+  cy.on('tap', 'node', function(evt){
+    var node = evt.target;
+    nodoSeleccionado = node.data('id');
+    var info = node.data('info');
+    if (info) {
+      document.getElementById('info').textContent = JSON.stringify(info, null, 2);
+    }
+  });
+}
+
+// Expande nodos relacionados con el nodo seleccionado (máx 50)
+function mostrarMasRelacionados() {
+  if (!nodoSeleccionado) return;
+
+  // Solo nodos de la tabla actual
+  const nodosTabla = allElements.filter(e =>
+    e.data && e.data.label === tablaActual
+  );
+  const idsTabla = new Set(nodosTabla.map(e => e.data.id));
+
+  // Empieza con los nodos actualmente visibles
+  let nuevosNodos = new Set(nodosVisibles);
+
+  // Encuentra edges conectados al nodo seleccionado (solo dentro de la tabla)
+  const edgesConectados = allElements.filter(e =>
+    e.data && e.data.source && e.data.target &&
+    idsTabla.has(e.data.source) && idsTabla.has(e.data.target) &&
+    (e.data.source === nodoSeleccionado || e.data.target === nodoSeleccionado)
+  );
+
+  // Añade los nodos conectados por esos edges, sin superar 50 nodos
+  for (const edge of edgesConectados) {
+    if (nuevosNodos.size < 50) nuevosNodos.add(edge.data.source);
+    if (nuevosNodos.size < 50) nuevosNodos.add(edge.data.target);
+    if (nuevosNodos.size >= 50) break;
+  }
+
+  // Filtra nodos y edges a mostrar
+  const nodosConectados = nodosTabla.filter(e => nuevosNodos.has(e.data.id));
+  const idsPermitidos = new Set(nodosConectados.map(e => e.data.id));
+  const edgesFiltrados = allElements.filter(e =>
+    e.data && e.data.source && e.data.target &&
+    idsPermitidos.has(e.data.source) && idsPermitidos.has(e.data.target)
+  );
+
+  nodosVisibles = idsPermitidos;
+
+  const elementosMostrar = [...nodosConectados, ...edgesFiltrados];
+
+  if (cy) cy.destroy();
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements: elementosMostrar,
+    style: [
+      { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#0074D9' } },
+      { selector: 'edge', style: { 'label': 'data(label)', 'width': 2, 'line-color': '#aaa' } }
+    ],
+    layout: { name: 'cose' }
+  });
+
+  cy.on('tap', 'node', function(evt){
+    var node = evt.target;
+    nodoSeleccionado = node.data('id');
+    var info = node.data('info');
+    if (info) {
+      document.getElementById('info').textContent = JSON.stringify(info, null, 2);
+    }
+  });
+}
 
 function cargarGrafo(nombreArchivo) {
   fetch('/data/' + nombreArchivo)
     .then(response => response.json())
     .then(data => {
       allElements = data.elements;
-      mostrarNodoCentralAleatorio();
+      extraerTablas();
+      actualizarSelectorTablas();
+      mostrarTablaSeleccionada();
     });
 }
 
-function mostrarNodoCentralAleatorio() {
-  const nodos = allElements.filter(e => e.data && e.data.id && !e.data.source && !e.data.target);
-  if (nodos.length === 0) return;
-  nodoCentral = nodos[Math.floor(Math.random() * nodos.length)];
-  nodosVisibles = new Set([nodoCentral.data.id]);
-  mostrarRelacionados();
-}
-
-function mostrarRelacionados() {
-  let nuevosNodos = new Set(nodosVisibles);
-  const edgesConectados = allElements.filter(e =>
-    e.data && e.data.source && e.data.target &&
-    (nodosVisibles.has(e.data.source) || nodosVisibles.has(e.data.target))
-  );
-  for (const edge of edgesConectados) {
-    if (nuevosNodos.size < 50) nuevosNodos.add(edge.data.source);
-    if (nuevosNodos.size < 50) nuevosNodos.add(edge.data.target);
-    if (nuevosNodos.size >= 50) break;
-  }
-  const nodosConectados = allElements.filter(e =>
-    e.data && e.data.id && nuevosNodos.has(e.data.id)
-  );
-  const idsPermitidos = new Set(nodosConectados.map(e => e.data.id));
-  const edgesFiltrados = allElements.filter(e =>
-    e.data && e.data.source && e.data.target &&
-    idsPermitidos.has(e.data.source) && idsPermitidos.has(e.data.target)
-  );
-  nodosVisibles = idsPermitidos;
-  const elementosMostrar = [...nodosConectados, ...edgesFiltrados];
-
-  if (cy) cy.destroy();
-  cy = cytoscape({
-    container: document.getElementById('cy'),
-    elements: elementosMostrar,
-    style: [
-      { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#0074D9' } },
-      { selector: 'edge', style: { 'label': 'data(label)', 'width': 2, 'line-color': '#aaa' } }
-    ],
-    layout: { name: 'cose' }
-  });
-
-  cy.on('tap', 'node', function(evt){
-    var node = evt.target;
-    nodoSeleccionado = node.data('id');
-    var info = node.data('info');
-    if (info) {
-      document.getElementById('info').textContent = JSON.stringify(info, null, 2);
-    }
-  });
-}
-
-function expandirNodoSeleccionado() {
-  if (!nodoSeleccionado) return;
-  // Solo el nodo seleccionado y sus vecinos directos
-  let nuevosNodos = new Set([nodoSeleccionado]);
-  const edgesConectados = allElements.filter(e =>
-    e.data && e.data.source && e.data.target &&
-    (e.data.source === nodoSeleccionado || e.data.target === nodoSeleccionado)
-  );
-  for (const edge of edgesConectados) {
-    if (nuevosNodos.size < 50) nuevosNodos.add(edge.data.source);
-    if (nuevosNodos.size < 50) nuevosNodos.add(edge.data.target);
-    if (nuevosNodos.size >= 50) break;
-  }
-  const nodosConectados = allElements.filter(e =>
-    e.data && e.data.id && nuevosNodos.has(e.data.id)
-  );
-  const idsPermitidos = new Set(nodosConectados.map(e => e.data.id));
-  const edgesFiltrados = allElements.filter(e =>
-    e.data && e.data.source && e.data.target &&
-    idsPermitidos.has(e.data.source) && idsPermitidos.has(e.data.target)
-  );
-  nodosVisibles = idsPermitidos;
-  const elementosMostrar = [...nodosConectados, ...edgesFiltrados];
-
-  if (cy) cy.destroy();
-  cy = cytoscape({
-    container: document.getElementById('cy'),
-    elements: elementosMostrar,
-    style: [
-      { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#0074D9' } },
-      { selector: 'edge', style: { 'label': 'data(label)', 'width': 2, 'line-color': '#aaa' } }
-    ],
-    layout: { name: 'cose' }
-  });
-
-  cy.on('tap', 'node', function(evt){
-    var node = evt.target;
-    nodoSeleccionado = node.data('id');
-    var info = node.data('info');
-    if (info) {
-      document.getElementById('info').textContent = JSON.stringify(info, null, 2);
-    }
-  });
-}
-
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('grafoSelect').addEventListener('change', function() {
+  const grafoSelect = document.getElementById('grafoSelect');
+  cargarGrafo(grafoSelect.value);
+  grafoSelect.addEventListener('change', function() {
     cargarGrafo(this.value);
   });
+  document.getElementById('tablaSelect').addEventListener('change', function() {
+    tablaActual = this.value;
+    mostrarTablaSeleccionada();
+    actualizarSelectorElementos(); // <- Esto está bien
+  });
   document.getElementById('btnMas').addEventListener('click', function() {
-    mostrarRelacionados();
+    mostrarMasRelacionados();
   });
-  document.getElementById('btnOtro').addEventListener('click', function() {
-    mostrarNodoCentralAleatorio();
+  document.getElementById('btnVerElemento').addEventListener('click', function() {
+  const elementoId = document.getElementById('elementoSelect').value;
+  if (!elementoId) return;
+
+  // Encuentra todos los edges conectados al nodo seleccionado (de cualquier tabla)
+  const edgesConectados = allElements.filter(e =>
+    e.data && e.data.source && e.data.target &&
+    (e.data.source === elementoId || e.data.target === elementoId)
+  );
+
+  // Añade los nodos conectados por esos edges (de cualquier tabla)
+  let nuevosNodos = new Set([elementoId]);
+  for (const edge of edgesConectados) {
+    nuevosNodos.add(edge.data.source);
+    nuevosNodos.add(edge.data.target);
+  }
+
+  // Filtra nodos y edges a mostrar (de cualquier tabla)
+  const nodosConectados = allElements.filter(e =>
+    e.data && e.data.id && nuevosNodos.has(e.data.id)
+  );
+  const idsPermitidos = new Set(nodosConectados.map(e => e.data.id));
+  const edgesFiltrados = allElements.filter(e =>
+    e.data && e.data.source && e.data.target &&
+    idsPermitidos.has(e.data.source) && idsPermitidos.has(e.data.target)
+  );
+
+  nodosVisibles = idsPermitidos;
+
+  const elementosMostrar = [...nodosConectados, ...edgesFiltrados];
+
+  if (cy) cy.destroy();
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements: elementosMostrar,
+    style: [
+      { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#0074D9' } },
+      { selector: 'edge', style: { 'label': 'data(label)', 'width': 2, 'line-color': '#aaa' } }
+    ],
+    layout: { name: 'cose' }
   });
-  document.getElementById('btnExpandir').addEventListener('click', function() {
-    expandirNodoSeleccionado();
+
+  cy.on('tap', 'node', function(evt){
+    var node = evt.target;
+    nodoSeleccionado = node.data('id');
+    var info = node.data('info');
+    if (info) {
+      document.getElementById('info').textContent = JSON.stringify(info, null, 2);
+    }
   });
 });
+});
 
-cargarGrafo('grafo.json');
+cargarGrafo('grafo_datos.json');
 </script>
 `;
 
@@ -225,15 +324,35 @@ app.post('/upload', upload.single('dbfile'), (req, res) => {
     }
     const dbPath = path.resolve(req.file.path);
 
-    // Llama a tu pipeline Python (ajusta la ruta si es necesario)
-    // Usa python o python3 según tu sistema
+    // Nombres únicos para los archivos de salida
+    const dbBase = path.basename(dbPath, path.extname(dbPath));
+    const grafoJson = `grafo_${dbBase}.json`;
+    const grafoDatosJson = `grafo_datos_${dbBase}.json`;
+
+    // Ejecuta Principal.py, Grafo.py y GrafoDatos.py en orden
     exec(`python "${path.join(SRC_DIR, 'Principal.py')}" "${dbPath}"`, { cwd: SRC_DIR }, (error, stdout, stderr) => {
         console.log(stdout);
         console.error(stderr);
         if (error) {
             return res.send('Error al procesar la base de datos.<br>' + stderr);
         }
-        res.redirect('/');
+        // Ejecuta Grafo.py
+        exec(`python "${path.join(SRC_DIR, 'Grafo.py')}" "${dbPath}" "${grafoJson}"`, { cwd: SRC_DIR }, (error2, stdout2, stderr2) => {
+            console.log(stdout2);
+            console.error(stderr2);
+            if (error2) {
+                return res.send('Error al generar grafo.json.<br>' + stderr2);
+            }
+            // Ejecuta GrafoDatos.py
+            exec(`python "${path.join(SRC_DIR, 'GrafoDatos.py')}" "${dbPath}" "${grafoDatosJson}"`, { cwd: SRC_DIR }, (error3, stdout3, stderr3) => {
+                console.log(stdout3);
+                console.error(stderr3);
+                if (error3) {
+                    return res.send('Error al generar grafo_datos.json.<br>' + stderr3);
+                }
+                res.redirect('/');
+            });
+        });
     });
 });
 
@@ -241,14 +360,31 @@ app.post('/procesar/:filename', (req, res) => {
     const dbFile = req.params.filename;
     const dbPath = path.join(UPLOADS_DIR, dbFile);
 
-    // Llama a tu pipeline Python
-    exec(`python "./src/Principal.py" "${dbPath}"`, { cwd: __dirname }, (error, stdout, stderr) => {
+    const dbBase = path.basename(dbPath, path.extname(dbPath));
+    const grafoJson = `grafo_${dbBase}.json`;
+    const grafoDatosJson = `grafo_datos_${dbBase}.json`;
+
+    exec(`python "${path.join('src', 'Principal.py')}" "${dbPath}"`, { cwd: __dirname }, (error, stdout, stderr) => {
         console.log(stdout);
         console.error(stderr);
         if (error) {
             return res.send('Error al procesar la base de datos.<br>' + stderr);
         }
-        res.redirect('/');
+        exec(`python "${path.join('src', 'Grafo.py')}" "${dbPath}" "${grafoJson}"`, { cwd: __dirname }, (error2, stdout2, stderr2) => {
+            console.log(stdout2);
+            console.error(stderr2);
+            if (error2) {
+                return res.send('Error al generar grafo.json.<br>' + stderr2);
+            }
+            exec(`python "${path.join('src', 'GrafoDatos.py')}" "${dbPath}" "${grafoDatosJson}"`, { cwd: __dirname }, (error3, stdout3, stderr3) => {
+                console.log(stdout3);
+                console.error(stderr3);
+                if (error3) {
+                    return res.send('Error al generar grafo_datos.json.<br>' + stderr3);
+                }
+                res.redirect('/');
+            });
+        });
     });
 });
 
