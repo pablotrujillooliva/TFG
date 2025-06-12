@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
         cb(null, UPLOADS_DIR);
     },
     filename: function (req, file, cb) {
-        cb(null, Date.now() + '_' + file.originalname);
+        cb(null, file.originalname);
     }
 });
 const upload = multer({ storage: storage });
@@ -37,6 +37,9 @@ app.get('/', (req, res) => {
     const uploadFiles = fs.readdirSync(UPLOADS_DIR);
 
     let html = `<h1>TFG Data Viewer (Node.js)</h1>
+    <form action="/borrar-data" method="post" onsubmit="return confirm('¿Seguro que quieres borrar TODOS los archivos de data?');">
+      <button type="submit" style="background:red;color:white;">Borrar archivos</button>
+    </form>
     <form action="/upload" method="post" enctype="multipart/form-data">
         <label>Sube tu base de datos (.db):</label>
         <input type="file" name="dbfile" accept=".db" required>
@@ -112,6 +115,17 @@ function extraerTablas() {
 function actualizarSelectorTablas() {
   const tablaSel = document.getElementById('tablaSelect');
   tablaSel.innerHTML = '';
+  // Opción "---"
+  const optNone = document.createElement('option');
+  optNone.value = '__NONE__';
+  optNone.textContent = '---';
+  tablaSel.appendChild(optNone);
+  // Opción neutra
+  const optTodos = document.createElement('option');
+  optTodos.value = '__ALL__';
+  optTodos.textContent = 'Todos';
+  tablaSel.appendChild(optTodos);
+  // Opciones de tablas reales
   tablasDisponibles.forEach(tabla => {
     const opt = document.createElement('option');
     opt.value = tabla;
@@ -119,16 +133,19 @@ function actualizarSelectorTablas() {
     tablaSel.appendChild(opt);
   });
   tablaActual = tablaSel.value;
-  actualizarSelectorElementos(); // <- Esto está bien
+  actualizarSelectorElementos();
 }
 
 function actualizarSelectorElementos() {
   const elementoSel = document.getElementById('elementoSelect');
   elementoSel.innerHTML = '';
-  // Solo nodos de la tabla seleccionada
-  const nodosTabla = allElements.filter(e =>
-    e.data && e.data.label && String(e.data.label).split(':')[0].trim() === tablaActual
-  );
+  if (tablaActual === '__NONE__') return; // No mostrar nada
+  // Todos los nodos si está seleccionado "Todos"
+  const nodosTabla = tablaActual === '__ALL__'
+    ? allElements.filter(e => e.data && e.data.label)
+    : allElements.filter(e =>
+        e.data && e.data.label && String(e.data.label).split(':')[0].trim() === tablaActual
+      );
   nodosTabla.forEach(nodo => {
     const opt = document.createElement('option');
     opt.value = nodo.data.id;
@@ -138,10 +155,17 @@ function actualizarSelectorElementos() {
 }
 
 function mostrarTablaSeleccionada() {
-  // Solo nodos cuya tabla coincida exactamente con la seleccionada
-  const nodosTabla = allElements.filter(e =>
-    e.data && e.data.label && String(e.data.label).split(':')[0].trim() === tablaActual
-  );
+  if (tablaActual === '__NONE__') {
+    if (cy) cy.destroy();
+    cy = null;
+    return;
+  }
+  // Todos los nodos si está seleccionado "Todos"
+  const nodosTabla = tablaActual === '__ALL__'
+    ? allElements.filter(e => e.data && e.data.label)
+    : allElements.filter(e =>
+        e.data && e.data.label && String(e.data.label).split(':')[0].trim() === tablaActual
+      );
   const idsTabla = new Set(nodosTabla.map(e => e.data.id));
   const edgesTabla = allElements.filter(e =>
     e.data && e.data.source && e.data.target &&
@@ -149,7 +173,7 @@ function mostrarTablaSeleccionada() {
   );
   const elementosMostrar = [...nodosTabla, ...edgesTabla];
 
-  nodosVisibles = new Set(nodosTabla.map(e => e.data.id)); // Inicializa nodos visibles
+  nodosVisibles = new Set(nodosTabla.map(e => e.data.id));
 
   if (cy) cy.destroy();
   cy = cytoscape({
@@ -239,7 +263,7 @@ function cargarGrafo(nombreArchivo) {
       allElements = data.elements;
       extraerTablas();
       actualizarSelectorTablas();
-      mostrarTablaSeleccionada();
+      // NO LLAMES a mostrarTablaSeleccionada aquí
     });
 }
 
@@ -248,11 +272,20 @@ document.addEventListener('DOMContentLoaded', function() {
   cargarGrafo(grafoSelect.value);
   grafoSelect.addEventListener('change', function() {
     cargarGrafo(this.value);
+    if (cy) { cy.destroy(); cy = null; }
+    document.getElementById('info').textContent = '';
   });
   document.getElementById('tablaSelect').addEventListener('change', function() {
     tablaActual = this.value;
-    mostrarTablaSeleccionada();
-    actualizarSelectorElementos(); // <- Esto está bien
+    actualizarSelectorElementos();
+    if (cy) { cy.destroy(); cy = null; }
+    document.getElementById('info').textContent = '';
+
+    // Si selecciona "Todos", mostrar todo el grafo
+    if (tablaActual === '__ALL__') {
+      mostrarTablaSeleccionada();
+    }
+    // Si selecciona cualquier otra opción (incluyendo "---" o una tabla concreta), NO mostrar nada
   });
   document.getElementById('btnMas').addEventListener('click', function() {
     mostrarMasRelacionados();
@@ -386,6 +419,18 @@ app.post('/procesar/:filename', (req, res) => {
             });
         });
     });
+});
+
+app.post('/borrar-data', (req, res) => {
+    const files = fs.readdirSync(DATA_DIR);
+    files.forEach(f => {
+        fs.unlinkSync(path.join(DATA_DIR, f));
+    });
+    const uploadFiles = fs.readdirSync(UPLOADS_DIR);
+    uploadFiles.forEach(f => {
+        fs.unlinkSync(path.join(UPLOADS_DIR, f));
+    });
+    res.redirect('/');
 });
 
 const PORT = 3010;
