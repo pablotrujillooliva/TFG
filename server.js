@@ -261,29 +261,80 @@ function mostrarTablaSeleccionada() {
     layout: { name: 'cose' }
   });
 
-  cy.on('tap', 'node', function(evt){
-    var node = evt.target;
-    nodoSeleccionado = node.data('id');
-    var info = node.data('info') || {};
-    if (Object.keys(info).length === 0 && node.data('label')) {
-      const label = node.data('label');
-      const partes = label.split(':');
-      if (partes.length > 1) {
-        const atributos = partes[1].split(',');
-        atributos.forEach(attr => {
-          const [k, v] = attr.split('=');
-          if (k && v) info[k.trim()] = v.trim();
-        });
+  addNodeTapHandler();
+
+  function addNodeTapHandler() {
+    cy.on('tap', 'node', function(evt){
+      var node = evt.target;
+      nodoSeleccionado = node.data('id');
+      var info = node.data('info') || {};
+      if (Object.keys(info).length === 0 && node.data('label')) {
+        const label = node.data('label');
+        const partes = label.split(':');
+        if (partes.length > 1) {
+          const atributos = partes[1].split(',');
+          atributos.forEach(attr => {
+            const [k, v] = attr.split('=');
+            if (k && v) info[k.trim()] = v.trim();
+          });
+        }
       }
-    }
-    // Muestra la información como lista lateral
-    let html = '<div style="text-align:left;"><b>Información del nodo:</b><ul style="padding-left:18px;">';
-    for (const k in info) {
-      html += '<li><b>' + k + ':</b> ' + info[k] + '</li>';
-    }
-    html += '</ul></div>';
-    document.getElementById('info').innerHTML = html;
-  });
+      let html = '<div style="text-align:left;"><b>Información del nodo:</b><ul style="padding-left:18px;">';
+      for (const k in info) {
+        html += '<li><b>' + k + ':</b> ' + info[k] + '</li>';
+      }
+      html += '</ul><button id="btnExpandirNodo" style="background:darkorange;color:white;margin-top:8px;">Expandir nodo</button></div>';
+      document.getElementById('info').innerHTML = html;
+
+      document.getElementById('btnExpandirNodo').onclick = function() {
+        // Encuentra todos los edges conectados al nodo seleccionado
+        const edgesConectados = allElements.filter(e =>
+          e.data && e.data.source && e.data.target &&
+          (e.data.source === nodoSeleccionado || e.data.target === nodoSeleccionado)
+        );
+        // Añade los nodos conectados por esos edges
+        let nuevosNodos = new Set([nodoSeleccionado]);
+        for (const edge of edgesConectados) {
+          nuevosNodos.add(edge.data.source);
+          nuevosNodos.add(edge.data.target);
+        }
+        // Filtra nodos y edges a mostrar
+        const nodosConectados = allElements.filter(e =>
+          e.data && e.data.id && nuevosNodos.has(e.data.id)
+        );
+        const idsPermitidos = new Set(nodosConectados.map(e => e.data.id));
+        const edgesFiltrados = allElements.filter(e =>
+          e.data && e.data.source && e.data.target &&
+          idsPermitidos.has(e.data.source) && idsPermitidos.has(e.data.target)
+        );
+        const elementosMostrar = [...nodosConectados, ...edgesFiltrados];
+        if (cy) cy.destroy();
+        cy = cytoscape({
+          container: document.getElementById('cy'),
+          elements: elementosMostrar,
+          style: [
+            { 
+              selector: 'node', 
+              style: { 
+                'label': 'data(table)',
+                'background-color': '#ADD8E6',
+                'text-valign': 'center',
+                'text-halign': 'center',
+                'color': '#fff',
+                'font-size': 6,
+                'text-outline-color': '#000000',
+                'text-outline-width': 1
+              } 
+            },
+            { selector: 'edge', style: { 'label': '', 'width': 2, 'line-color': '#aaa' } }
+          ],
+          layout: { name: 'cose' }
+        });
+
+        addNodeTapHandler(); // <-- Añade el handler de nuevo
+      };
+    });
+  }
 }
 
 // Expande nodos relacionados con el nodo seleccionado (máx 50)
@@ -383,29 +434,80 @@ document.addEventListener('DOMContentLoaded', function() {
     layout: { name: 'cose' }
   });
 
-  cy.on('tap', 'node', function(evt){
-    var node = evt.target;
-    nodoSeleccionado = node.data('id');
-    var info = node.data('info') || {};
-    if (Object.keys(info).length === 0 && node.data('label')) {
-      const label = node.data('label');
-      const partes = label.split(':');
-      if (partes.length > 1) {
-        const atributos = partes[1].split(',');
-        atributos.forEach(attr => {
-          const [k, v] = attr.split('=');
-          if (k && v) info[k.trim()] = v.trim();
-        });
+  addNodeTapHandler();
+
+  function addNodeTapHandler() {
+    cy.on('tap', 'node', function(evt){
+      var node = evt.target;
+      nodoSeleccionado = node.data('id');
+      var info = node.data('info') || {};
+      if (Object.keys(info).length === 0 && node.data('label')) {
+        const label = node.data('label');
+        const partes = label.split(':');
+        if (partes.length > 1) {
+          const atributos = partes[1].split(',');
+          atributos.forEach(attr => {
+            const [k, v] = attr.split('=');
+            if (k && v) info[k.trim()] = v.trim();
+          });
+        }
       }
-    }
-    // Muestra la información como lista lateral
-    let html = '<div style="text-align:left;"><b>Información del nodo:</b><ul style="padding-left:18px;">';
-    for (const k in info) {
-      html += '<li><b>' + k + ':</b> ' + info[k] + '</li>';
-    }
-    html += '</ul></div>';
-    document.getElementById('info').innerHTML = html;
-  });
+      let html = '<div style="text-align:left;"><b>Información del nodo:</b><ul style="padding-left:18px;">';
+      for (const k in info) {
+        html += '<li><b>' + k + ':</b> ' + info[k] + '</li>';
+      }
+      html += '</ul><button id="btnExpandirNodo" style="background:darkorange;color:white;margin-top:8px;">Expandir nodo</button></div>';
+      document.getElementById('info').innerHTML = html;
+
+      document.getElementById('btnExpandirNodo').onclick = function() {
+        // Encuentra todos los edges conectados al nodo seleccionado
+        const edgesConectados = allElements.filter(e =>
+          e.data && e.data.source && e.data.target &&
+          (e.data.source === nodoSeleccionado || e.data.target === nodoSeleccionado)
+        );
+        // Añade los nodos conectados por esos edges
+        let nuevosNodos = new Set([nodoSeleccionado]);
+        for (const edge of edgesConectados) {
+          nuevosNodos.add(edge.data.source);
+          nuevosNodos.add(edge.data.target);
+        }
+        // Filtra nodos y edges a mostrar
+        const nodosConectados = allElements.filter(e =>
+          e.data && e.data.id && nuevosNodos.has(e.data.id)
+        );
+        const idsPermitidos = new Set(nodosConectados.map(e => e.data.id));
+        const edgesFiltrados = allElements.filter(e =>
+          e.data && e.data.source && e.data.target &&
+          idsPermitidos.has(e.data.source) && idsPermitidos.has(e.data.target)
+        );
+        const elementosMostrar = [...nodosConectados, ...edgesFiltrados];
+        if (cy) cy.destroy();
+        cy = cytoscape({
+          container: document.getElementById('cy'),
+          elements: elementosMostrar,
+          style: [
+            { 
+              selector: 'node', 
+              style: { 
+                'label': 'data(table)',
+                'background-color': '#ADD8E6',
+                'text-valign': 'center',
+                'text-halign': 'center',
+                'color': '#fff',
+                'font-size': 6,
+                'text-outline-color': '#000000',
+                'text-outline-width': 1
+              } 
+            },
+            { selector: 'edge', style: { 'label': '', 'width': 2, 'line-color': '#aaa' } }
+          ],
+          layout: { name: 'cose' }
+        });
+
+        addNodeTapHandler(); // <-- Añade el handler de nuevo
+      };
+    });
+  }
 });
 
   document.getElementById('btnBuscarElemento').addEventListener('click', function() {
