@@ -36,14 +36,20 @@ app.get('/', (req, res) => {
     const images = fs.readdirSync(DATA_DIR).filter(f => f.endsWith('.png'));
     const uploadFiles = fs.readdirSync(UPLOADS_DIR);
 
-    let html = `<h1>TFG Data Viewer (Node.js)</h1>
+    let html = `
+<style>
+  body {
+    background: #F5F5DC;
+  }
+</style>
+<h1>TFG Data Viewer</h1>
     <form action="/borrar-data" method="post" onsubmit="return confirm('¿Seguro que quieres borrar TODOS los archivos de data?');">
-      <button type="submit" style="background:red;color:white;">Borrar archivos</button>
+      <button type="submit" style="background:crimson;color:white;">Borrar archivos</button>
     </form>
     <form action="/upload" method="post" enctype="multipart/form-data">
         <label>Sube tu base de datos (.db):</label>
         <input type="file" name="dbfile" accept=".db" required>
-        <button type="submit">Subir y transformar</button>
+        <button type="submit" style="background:darkgreen;color:white;">Subir y transformar</button>
     </form>
     <h2>Archivos TTL</h2><ul>`;
     ttlFiles.forEach(f => {
@@ -65,7 +71,7 @@ app.get('/', (req, res) => {
         html += `<li>
         <a href="/uploads/${f}" target="_blank">${f}</a>
         <form action="/procesar/${encodeURIComponent(f)}" method="post" style="display:inline;">
-            <button type="submit">Procesar</button>
+            <button type="submit" style="background:gold;color:white;">Procesar</button>
         </form>
     </li>`;
     });
@@ -80,16 +86,17 @@ app.get('/', (req, res) => {
 <select id="grafoSelect">
   ${jsonFiles.map(f => `<option value="${f}">${f}</option>`).join('')}
 </select>
-<label for="elementoSelect" style="margin-left:2em;">Selecciona el elemento:</label>
-<select id="elementoSelect"></select>
-<button id="btnVerElemento">Ver relacionados</button>
+<label for="columnaFiltro" style="margin-left:2em;">Filtrar por columna:</label>
+<select id="columnaFiltro"></select>
+<input type="text" id="elementoFiltro" placeholder="Buscar elemento..." style="margin-left:1em;">
+<button id="btnBuscarElemento" style="background:darkblue;color:white;">Buscar</button>
 <div>
-  <button id="btnExpandir">Expandir nodo seleccionado</button>
-  <button id="btnMas">Mostrar más relacionados</button>
-  <button id="btnOtro">Mostrar otro nodo aleatorio</button>
+  <label for="elementoSelect" style="margin-left:2em;">Selecciona el elemento:</label>
+  <select id="elementoSelect"></select>
+  <button id="btnVerElemento" style="background:darkorange;color:white;">Ver relacionados</button>
 </div>
-<div id="cy" style="width: 100%; height: 600px; border: 1px solid #ccc;"></div>
-<div id="info" style="white-space: pre; margin-top: 1em; background: #f8f8f8; border: 1px solid #ccc; padding: 10px;"></div>
+<div id="cy" style="width: 100%; height: 600px; border: 1px solid #ccc; background:white;"></div>
+<div id="info" style="white-space: pre; margin-top: 1em; background:rgb(245, 245, 220); border: 1px solid #ccc; padding: 10px;"></div>
 <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
 <script>
 let allElements = [];
@@ -133,20 +140,75 @@ function actualizarSelectorTablas() {
     tablaSel.appendChild(opt);
   });
   tablaActual = tablaSel.value;
+  actualizarSelectorColumnas();
   actualizarSelectorElementos();
 }
 
-function actualizarSelectorElementos() {
-  const elementoSel = document.getElementById('elementoSelect');
-  elementoSel.innerHTML = '';
-  if (tablaActual === '__NONE__') return; // No mostrar nada
-  // Todos los nodos si está seleccionado "Todos"
+function actualizarSelectorColumnas() {
+  const columnaSel = document.getElementById('columnaFiltro');
+  columnaSel.innerHTML = '';
+  // Busca nodos de la tabla actual
   const nodosTabla = tablaActual === '__ALL__'
     ? allElements.filter(e => e.data && e.data.label)
     : allElements.filter(e =>
         e.data && e.data.label && String(e.data.label).split(':')[0].trim() === tablaActual
       );
+  // Extrae todas las claves del label de los nodos
+  const columnasSet = new Set();
   nodosTabla.forEach(nodo => {
+    if (nodo.data && nodo.data.label) {
+      // Extrae la parte después de los dos puntos
+      const partes = nodo.data.label.split(':');
+      if (partes.length > 1) {
+        const atributos = partes[1].split(',');
+        atributos.forEach(attr => {
+          const [col] = attr.split('=');
+          if (col && col.trim()) columnasSet.add(col.trim());
+        });
+      }
+    }
+  });
+  // Añade opción "label" para buscar por el label completo
+  columnaSel.appendChild(new Option('label', 'label'));
+  // Añade todas las columnas encontradas
+  Array.from(columnasSet).forEach(col => {
+    columnaSel.appendChild(new Option(col, col));
+  });
+}
+
+function actualizarSelectorElementos(filtro = '') {
+  const elementoSel = document.getElementById('elementoSelect');
+  const columnaSel = document.getElementById('columnaFiltro');
+  const columna = columnaSel ? columnaSel.value : 'label';
+  elementoSel.innerHTML = '';
+  if (tablaActual === '__NONE__') return;
+  const nodosTabla = tablaActual === '__ALL__'
+    ? allElements.filter(e => e.data && e.data.label)
+    : allElements.filter(e =>
+        e.data && e.data.label && String(e.data.label).split(':')[0].trim() === tablaActual
+      );
+  // Filtra por columna y texto si hay filtro
+  const nodosFiltrados = filtro
+    ? nodosTabla.filter(nodo => {
+        if (columna === 'label') {
+          return nodo.data.label && nodo.data.label.toLowerCase().includes(filtro.toLowerCase());
+        } else if (nodo.data.label) {
+          // Extrae la parte después de los dos puntos
+          const partes = nodo.data.label.split(':');
+          if (partes.length > 1) {
+            const atributos = partes[1].split(',');
+            for (let attr of atributos) {
+              let [key, value] = attr.split('=');
+              if (key && value && key.trim() === columna) {
+                return value.trim().toLowerCase().includes(filtro.toLowerCase());
+              }
+            }
+          }
+        }
+        return false;
+      })
+    : nodosTabla;
+  nodosFiltrados.forEach(nodo => {
     const opt = document.createElement('option');
     opt.value = nodo.data.id;
     opt.textContent = nodo.data.label;
@@ -180,8 +242,21 @@ function mostrarTablaSeleccionada() {
     container: document.getElementById('cy'),
     elements: elementosMostrar,
     style: [
-      { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#0074D9' } },
-      { selector: 'edge', style: { 'label': 'data(label)', 'width': 2, 'line-color': '#aaa' } }
+      { 
+        selector: 'node', 
+        style: { 
+          // Mostrar la tabla como etiqueta del nodo
+          'label': 'data(table)',
+          'background-color': '#ADD8E6',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'color': '#fff',
+          'font-size': 6,
+          'text-outline-color': '#000000',
+          'text-outline-width': 1
+        } 
+      },
+      { selector: 'edge', style: { 'label': '', 'width': 2, 'line-color': '#aaa' } }
     ],
     layout: { name: 'cose' }
   });
@@ -189,77 +264,42 @@ function mostrarTablaSeleccionada() {
   cy.on('tap', 'node', function(evt){
     var node = evt.target;
     nodoSeleccionado = node.data('id');
-    var info = node.data('info');
-    if (info) {
-      document.getElementById('info').textContent = JSON.stringify(info, null, 2);
+    var info = node.data('info') || {};
+    if (Object.keys(info).length === 0 && node.data('label')) {
+      const label = node.data('label');
+      const partes = label.split(':');
+      if (partes.length > 1) {
+        const atributos = partes[1].split(',');
+        atributos.forEach(attr => {
+          const [k, v] = attr.split('=');
+          if (k && v) info[k.trim()] = v.trim();
+        });
+      }
     }
+    // Muestra la información como lista lateral
+    let html = '<div style="text-align:left;"><b>Información del nodo:</b><ul style="padding-left:18px;">';
+    for (const k in info) {
+      html += '<li><b>' + k + ':</b> ' + info[k] + '</li>';
+    }
+    html += '</ul></div>';
+    document.getElementById('info').innerHTML = html;
   });
 }
 
 // Expande nodos relacionados con el nodo seleccionado (máx 50)
-function mostrarMasRelacionados() {
-  if (!nodoSeleccionado) return;
 
-  // Solo nodos de la tabla actual
-  const nodosTabla = allElements.filter(e =>
-    e.data && e.data.label === tablaActual
-  );
-  const idsTabla = new Set(nodosTabla.map(e => e.data.id));
-
-  // Empieza con los nodos actualmente visibles
-  let nuevosNodos = new Set(nodosVisibles);
-
-  // Encuentra edges conectados al nodo seleccionado (solo dentro de la tabla)
-  const edgesConectados = allElements.filter(e =>
-    e.data && e.data.source && e.data.target &&
-    idsTabla.has(e.data.source) && idsTabla.has(e.data.target) &&
-    (e.data.source === nodoSeleccionado || e.data.target === nodoSeleccionado)
-  );
-
-  // Añade los nodos conectados por esos edges, sin superar 50 nodos
-  for (const edge of edgesConectados) {
-    if (nuevosNodos.size < 50) nuevosNodos.add(edge.data.source);
-    if (nuevosNodos.size < 50) nuevosNodos.add(edge.data.target);
-    if (nuevosNodos.size >= 50) break;
-  }
-
-  // Filtra nodos y edges a mostrar
-  const nodosConectados = nodosTabla.filter(e => nuevosNodos.has(e.data.id));
-  const idsPermitidos = new Set(nodosConectados.map(e => e.data.id));
-  const edgesFiltrados = allElements.filter(e =>
-    e.data && e.data.source && e.data.target &&
-    idsPermitidos.has(e.data.source) && idsPermitidos.has(e.data.target)
-  );
-
-  nodosVisibles = idsPermitidos;
-
-  const elementosMostrar = [...nodosConectados, ...edgesFiltrados];
-
-  if (cy) cy.destroy();
-  cy = cytoscape({
-    container: document.getElementById('cy'),
-    elements: elementosMostrar,
-    style: [
-      { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#0074D9' } },
-      { selector: 'edge', style: { 'label': 'data(label)', 'width': 2, 'line-color': '#aaa' } }
-    ],
-    layout: { name: 'cose' }
-  });
-
-  cy.on('tap', 'node', function(evt){
-    var node = evt.target;
-    nodoSeleccionado = node.data('id');
-    var info = node.data('info');
-    if (info) {
-      document.getElementById('info').textContent = JSON.stringify(info, null, 2);
-    }
-  });
-}
 
 function cargarGrafo(nombreArchivo) {
   fetch('/data/' + nombreArchivo)
     .then(response => response.json())
     .then(data => {
+      // Añade el campo table a cada nodo
+      data.elements.forEach(e => {
+        if (e.data && e.data.label && !e.data.table) {
+          const partes = e.data.label.split(':');
+          e.data.table = partes[0] ? partes[0].trim() : '';
+        }
+      });
       allElements = data.elements;
       extraerTablas();
       actualizarSelectorTablas();
@@ -277,6 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   document.getElementById('tablaSelect').addEventListener('change', function() {
     tablaActual = this.value;
+    actualizarSelectorColumnas();
     actualizarSelectorElementos();
     if (cy) { cy.destroy(); cy = null; }
     document.getElementById('info').textContent = '';
@@ -286,9 +327,6 @@ document.addEventListener('DOMContentLoaded', function() {
       mostrarTablaSeleccionada();
     }
     // Si selecciona cualquier otra opción (incluyendo "---" o una tabla concreta), NO mostrar nada
-  });
-  document.getElementById('btnMas').addEventListener('click', function() {
-    mostrarMasRelacionados();
   });
   document.getElementById('btnVerElemento').addEventListener('click', function() {
   const elementoId = document.getElementById('elementoSelect').value;
@@ -326,8 +364,21 @@ document.addEventListener('DOMContentLoaded', function() {
     container: document.getElementById('cy'),
     elements: elementosMostrar,
     style: [
-      { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#0074D9' } },
-      { selector: 'edge', style: { 'label': 'data(label)', 'width': 2, 'line-color': '#aaa' } }
+      { 
+        selector: 'node', 
+        style: { 
+          // Mostrar la tabla como etiqueta del nodo
+          'label': 'data(table)',
+          'background-color': '#ADD8E6',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'color': '#fff',
+          'font-size': 4,
+          'text-outline-color': '#000000',
+          'text-outline-width': 1
+        } 
+      },
+      { selector: 'edge', style: { 'label': '', 'width': 2, 'line-color': '#aaa' } }
     ],
     layout: { name: 'cose' }
   });
@@ -335,12 +386,38 @@ document.addEventListener('DOMContentLoaded', function() {
   cy.on('tap', 'node', function(evt){
     var node = evt.target;
     nodoSeleccionado = node.data('id');
-    var info = node.data('info');
-    if (info) {
-      document.getElementById('info').textContent = JSON.stringify(info, null, 2);
+    var info = node.data('info') || {};
+    if (Object.keys(info).length === 0 && node.data('label')) {
+      const label = node.data('label');
+      const partes = label.split(':');
+      if (partes.length > 1) {
+        const atributos = partes[1].split(',');
+        atributos.forEach(attr => {
+          const [k, v] = attr.split('=');
+          if (k && v) info[k.trim()] = v.trim();
+        });
+      }
     }
+    // Muestra la información como lista lateral
+    let html = '<div style="text-align:left;"><b>Información del nodo:</b><ul style="padding-left:18px;">';
+    for (const k in info) {
+      html += '<li><b>' + k + ':</b> ' + info[k] + '</li>';
+    }
+    html += '</ul></div>';
+    document.getElementById('info').innerHTML = html;
   });
 });
+
+  document.getElementById('btnBuscarElemento').addEventListener('click', function() {
+    const filtro = document.getElementById('elementoFiltro').value;
+    actualizarSelectorElementos(filtro);
+  });
+
+  // Si quieres que al cambiar de columna también se limpie el filtro:
+  document.getElementById('columnaFiltro').addEventListener('change', function() {
+    document.getElementById('elementoFiltro').value = '';
+    actualizarSelectorElementos('');
+  });
 });
 
 cargarGrafo('grafo_datos.json');
