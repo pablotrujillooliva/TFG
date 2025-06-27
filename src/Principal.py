@@ -2,7 +2,7 @@
 import ER as ER
 import Dibujo as Dibujo
 import Carga as Carga
-import ttl_transform_webVOWL as ttl_transform_webVOWL
+import TFG.src.GraphDB_transform as GraphDB_transform
 import os
 
 # Ruta absoluta a la carpeta data en la raíz del proyecto
@@ -18,7 +18,7 @@ def main(db_path):
     esquema_previo = ER.ejecutar(base_datos)
     dibujo_esquema = Dibujo.dibujar_grafo(base_datos)
     carga_datos = Carga.cargar_datos(esquema_previo, base_datos)
-    webVOWL_trans = ttl_transform_webVOWL.main(carga_datos, "datos_cargar.json")
+    webVOWL_trans = GraphDB_transform.main(carga_datos, "datos_cargar.json")
     return esquema_previo, dibujo_esquema, carga_datos, webVOWL_trans
 
 if __name__ == "__main__":
