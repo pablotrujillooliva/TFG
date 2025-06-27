@@ -355,7 +355,6 @@ document.addEventListener('DOMContentLoaded', function() {
       for (const k in info) {
         html += '<li><b>' + k + ':</b> ' + info[k] + '</li>';
       }
-      html += '</ul><button id="btnExpandirNodo" style="background:darkorange;color:white;margin-top:8px;">Expandir nodo</button></div>';
       document.getElementById('info').innerHTML = html;
 
       document.getElementById('btnExpandirNodo').onclick = function() {

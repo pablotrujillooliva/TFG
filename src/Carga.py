@@ -1,12 +1,57 @@
 import sqlite3
 import os
 from rdflib import Graph, Namespace, Literal, RDF, URIRef
-from rdflib.namespace import XSD
+from rdflib.namespace import FOAF, DC, DCTERMS, RDF, RDFS, XSD
 
 # Ruta absoluta a la carpeta data en la raíz del proyecto
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 os.makedirs(DATA_DIR, exist_ok=True)
+
+# Diccionario ampliado de mapeo exacto
+COLUMN_MAP = {
+    "name": FOAF.name,
+    "first_name": FOAF.name,
+    "nombre": FOAF.name,
+    "email": FOAF.mbox,
+    "correo": FOAF.mbox,
+    "mail": FOAF.mbox,
+    "description": DC.description,
+    "descripcion": DC.description,
+    "title": DC.title,
+    "titulo": DC.title,
+    "created": DCTERMS.created,
+    "modified": DCTERMS.modified,
+    "last_updated": DCTERMS.modified,
+    "birthdate": FOAF.birthday,
+    "fecha_nacimiento": FOAF.birthday,
+    "homepage": FOAF.homepage,
+    "url": FOAF.homepage,
+    "website": FOAF.homepage,
+    "phone": FOAF.phone,
+    "telefono": FOAF.phone,
+    "phone": FOAF.phone,
+    "nick": FOAF.nick,
+    "username": FOAF.nick,
+    "apellido": FOAF.familyName,
+    "lastname": FOAF.familyName,
+    "last_name": FOAF.familyName,
+    "givenname": FOAF.givenName,
+    "apodo": FOAF.nick,
+}
+
+# Función para buscar coincidencias parciales
+def get_standard_property(col_name, table_ns):
+    safe_col = col_name.replace(" ", "_").lower()
+    # Coincidencia exacta
+    if safe_col in COLUMN_MAP:
+        return COLUMN_MAP[safe_col]
+    # Coincidencia parcial
+    for key, uri in COLUMN_MAP.items():
+        if key in safe_col:
+            return uri
+    # Si no hay coincidencia, usa el namespace propio
+    return table_ns[safe_col]
 
 # 🔹 Archivo del esquema generado previamente
 def cargar_datos(esquema_previo, base_datos):
@@ -16,6 +61,11 @@ def cargar_datos(esquema_previo, base_datos):
     # 🔹 Cargar el esquema RDF existente
     g = Graph()
     g.parse(esquema_file, format='turtle')
+    g.bind("foaf", FOAF)
+    g.bind("dc", DC)
+    g.bind("dcterms", DCTERMS)
+    g.bind("xsd", XSD)
+    g.bind("rdfs", RDFS)
 
     # 🔹 Conectar a la base de datos SQLite
     db_file = base_datos
@@ -60,8 +110,7 @@ def cargar_datos(esquema_previo, base_datos):
             
             # Añadir propiedades (columnas) con sus valores
             for col_name, value in zip(columns, row):
-                safe_col_name = col_name.replace(" ", "_")
-                prop_uri = table_ns[safe_col_name]
+                prop_uri = get_standard_property(col_name, table_ns)
                 
                 # Asignar el valor de la propiedad con su tipo adecuado
                 if isinstance(value, int):

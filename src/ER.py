@@ -1,10 +1,54 @@
 import sqlite3
 import os
 from rdflib import Graph, Namespace, Literal, RDF, RDFS, OWL, XSD
+from rdflib.namespace import FOAF, DC, DCTERMS
 
 # === CONFIGURACIÓN ===
-# DB_FILE = r'C:\Users\pablo\Documents\TFG\Proyect\TFG\dbs\chinook.db'  # Cambia esto al archivo de tu base de datos
 
+# Diccionario ampliado de mapeo exacto
+COLUMN_MAP = {
+    "name": FOAF.name,
+    "first_name": FOAF.name,
+    "nombre": FOAF.name,
+    "email": FOAF.mbox,
+    "correo": FOAF.mbox,
+    "mail": FOAF.mbox,
+    "description": DC.description,
+    "descripcion": DC.description,
+    "title": DC.title,
+    "titulo": DC.title,
+    "created": DCTERMS.created,
+    "modified": DCTERMS.modified,
+    "last_updated": DCTERMS.modified,
+    "birthdate": FOAF.birthday,
+    "fecha_nacimiento": FOAF.birthday,
+    "homepage": FOAF.homepage,
+    "url": FOAF.homepage,
+    "website": FOAF.homepage,
+    "phone": FOAF.phone,
+    "telefono": FOAF.phone,
+    "phone": FOAF.phone,
+    "nick": FOAF.nick,
+    "username": FOAF.nick,
+    "apellido": FOAF.familyName,
+    "lastname": FOAF.familyName,
+    "last_name": FOAF.familyName,
+    "givenname": FOAF.givenName,
+    "apodo": FOAF.nick,
+}
+
+# Función para buscar coincidencias parciales
+def get_standard_property(col_name, table_ns):
+    safe_col = col_name.replace(" ", "_").lower()
+    # Coincidencia exacta
+    if safe_col in COLUMN_MAP:
+        return COLUMN_MAP[safe_col]
+    # Coincidencia parcial
+    for key, uri in COLUMN_MAP.items():
+        if key in safe_col:
+            return uri
+    # Si no hay coincidencia, usa el namespace propio
+    return table_ns[safe_col]
 
 def ejecutar(base_datos):
     print("Ejecutando ER.py")
@@ -52,6 +96,9 @@ def ejecutar(base_datos):
         g.bind("rdfs", RDFS_NS)
         g.bind("owl", OWL_NS)
         g.bind("xsd", XSD_NS)
+        g.bind("foaf", FOAF)
+        g.bind("dc", DC)
+        g.bind("dcterms", DCTERMS)
         return g
 
     # Crear clases para cada tabla
@@ -64,8 +111,9 @@ def ejecutar(base_datos):
 
     # Crear propiedades de datos para las columnas de una tabla
     def create_data_properties(g, table, columns):
+        table_ns = Namespace(f"http://example.org/db/{table}#")
         for column_name, column_type in columns:
-            property_uri = BASE_NS[f"{table}_{column_name}"]
+            property_uri = get_standard_property(column_name, table_ns)
             g.add((property_uri, RDF.type, RDF.Property))
             g.add((property_uri, RDFS.label, Literal(column_name)))
             g.add((property_uri, RDFS.domain, BASE_NS[table]))
