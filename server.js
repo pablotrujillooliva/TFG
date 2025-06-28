@@ -38,69 +38,233 @@ app.get('/', (req, res) => {
     const uploadFiles = fs.readdirSync(UPLOADS_DIR);
 
     let html = `
-<style>
-  body {
-    background: #F5F5DC;
-  }
-</style>
-<h1>TFG Data Viewer</h1>
-    <form action="/borrar-data" method="post" onsubmit="return confirm('¿Seguro que quieres borrar TODOS los archivos de data?');">
-      <button type="submit" style="background:crimson;color:white;">Borrar archivos</button>
-    </form>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <label>Sube tu base de datos (.db):</label>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TFG Data Viewer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: #f4f6fa;
+      font-family: 'Roboto', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #222;
+    }
+    header {
+      background: linear-gradient(90deg, #003366 0%, #005fa3 100%);
+      color: #fff;
+      padding: 2rem 1rem 1rem 1rem;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin: 0 0 0.5em 0;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+    main {
+      max-width: 1100px;
+      margin: 2rem auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+      padding: 2rem 2.5rem 2.5rem 2.5rem;
+    }
+    section {
+      margin-bottom: 2.5rem;
+    }
+    h2 {
+      color: #005fa3;
+      font-size: 1.4rem;
+      margin-bottom: 0.7em;
+      border-bottom: 1px solid #e0e0e0;
+      padding-bottom: 0.2em;
+    }
+    ul.file-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 1em 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7em 1.5em;
+    }
+    ul.file-list li {
+      background: #f0f4f8;
+      border-radius: 6px;
+      padding: 0.4em 1em;
+      font-size: 1em;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      transition: background 0.2s;
+    }
+    ul.file-list li:hover {
+      background: #e3eaf2;
+    }
+    a {
+      color: #003366;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .btn {
+      border: none;
+      border-radius: 5px;
+      padding: 0.5em 1.2em;
+      font-size: 1em;
+      font-family: inherit;
+      cursor: pointer;
+      margin: 0.2em 0.5em 0.2em 0;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-danger {
+      background: #c0392b;
+      color: #fff;
+    }
+    .btn-danger:hover {
+      background: #a93226;
+    }
+    .btn-success {
+      background: #27ae60;
+      color: #fff;
+    }
+    .btn-success:hover {
+      background: #219150;
+    }
+    .btn-warning {
+      background: #f1c40f;
+      color: #fff;
+    }
+    .btn-warning:hover {
+      background: #d4ac0d;
+    }
+    .btn-primary {
+      background: #005fa3;
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #003366;
+    }
+    form.inline {
+      display: inline;
+    }
+    .cyto-panel {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 1.5em 1em 1em 1em;
+      margin-top: 1.5em;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    label {
+      font-weight: 500;
+      margin-right: 0.5em;
+    }
+    select, input[type="text"] {
+      border-radius: 4px;
+      border: 1px solid #bfc9d1;
+      padding: 0.3em 0.7em;
+      font-size: 1em;
+      margin-right: 0.7em;
+      margin-bottom: 0.5em;
+    }
+    #cy {
+      width: 100%;
+      height: 600px;
+      border: 1px solid #bfc9d1;
+      background: #fff;
+      border-radius: 8px;
+      margin-top: 1em;
+    }
+    #info {
+      white-space: pre;
+      margin-top: 1em;
+      background: #f4f6fa;
+      border: 1px solid #bfc9d1;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    @media (max-width: 700px) {
+      main { padding: 1em; }
+      .cyto-panel { padding: 1em 0.2em; }
+      #cy { height: 350px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TFG Visualizador Bases de Datos Relacional</h1>
+    <p style="font-size:1.1em; font-weight:400; margin:0;">Visualiza, transforma y explora tus bases de datos de forma intuitiva</p>
+  </header>
+  <main>
+    <section style="display:flex; gap:2em; flex-wrap:wrap; align-items:center;">
+      <form action="/borrar-data" method="post" onsubmit="return confirm('¿Seguro que quieres borrar TODOS los archivos de data?');">
+        <button type="submit" class="btn btn-danger">Borrar archivos</button>
+      </form>
+      <form action="/upload" method="post" enctype="multipart/form-data" style="display:flex; align-items:center; gap:1em;">
+        <label style="margin:0;">Sube tu base de datos (.db):</label>
         <input type="file" name="dbfile" accept=".db" required>
-        <button type="submit" style="background:darkgreen;color:white;">Subir y transformar</button>
-    </form>
-    <h2>Archivos TTL</h2><ul>`;
-    ttlFiles.forEach(f => {
-        html += `<li><a href="/data/${f}" target="_blank">${f}</a></li>`;
-    });
-    html += `</ul><h2>Archivos JSON</h2><ul>`;
-    jsonFiles.forEach(f => {
-        html += `<li><a href="/data/${f}" target="_blank">${f}</a></li>`;
-    });
-    html += `</ul><h2>Imágenes</h2><ul>`;
-    images.forEach(f => {
-        html += `<li><a href="/data/${f}" target="_blank">${f}</a></li>`;
-    });
-    html += `</ul>`;
-
-    // Añade la sección de uploads
-    html += `<h2>Uploads realizados</h2><ul>`;
-    uploadFiles.forEach(f => {
-        html += `<li>
-        <a href="/uploads/${f}" target="_blank">${f}</a>
-        <form action="/procesar/${encodeURIComponent(f)}" method="post" style="display:inline;">
-            <button type="submit" style="background:gold;color:white;">Procesar</button>
-        </form>
-    </li>`;
-    });
-    html += `</ul>`;
-
-    // Añade la sección de Cytoscape.js
-    html += `
-<h2>Visualización interactiva (Cytoscape.js)</h2>
-<label for="tablaSelect">Selecciona la tabla a visualizar:</label>
-<select id="tablaSelect"></select>
-<label for="grafoSelect" style="margin-left:2em;">Selecciona el grafo:</label>
-<select id="grafoSelect">
-  ${jsonFiles.map(f => `<option value="${f}">${f}</option>`).join('')}
-</select>
-<label for="columnaFiltro" style="margin-left:2em;">Filtrar por columna:</label>
-<select id="columnaFiltro"></select>
-<input type="text" id="elementoFiltro" placeholder="Buscar elemento..." style="margin-left:1em;">
-<button id="btnBuscarElemento" style="background:darkblue;color:white;">Buscar</button>
-<div style="display: flex; align-items: center; gap: 0.5em; max-width: 100vw; overflow-x: hidden;">
-  <label for="elementoSelect" style="margin-left:2em;">Selecciona el elemento:</label>
-  <select id="elementoSelect" style="min-width: 350px; min-height: 3em; font-size: 0.7em; white-space: normal; line-height: 1.3;"></select>
-</div>
-<button id="btnVerElemento" style="background:darkorange;color:white;">Ver relacionados</button>
-<button id="btnExpandirNodo" style="background:darkorange;color:white;">Expandir nodo</button>
-<div id="cy" style="width: 100%; height: 600px; border: 1px solid #ccc; background:white;"></div>
-<div id="info" style="white-space: pre; margin-top: 1em; background:rgb(245, 245, 220); border: 1px solid #ccc; padding: 10px;"></div>
-<script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
-<script src="/src/Pagina_cyto.js"></script>
+        <button type="submit" class="btn btn-success">Subir y transformar</button>
+      </form>
+    </section>
+    <section>
+      <h2>Archivos TTL</h2>
+      <ul class="file-list">
+        ${ttlFiles.map(f => `<li><a href="/data/${f}" target="_blank">${f}</a></li>`).join('')}
+      </ul>
+      <h2>Archivos JSON</h2>
+      <ul class="file-list">
+        ${jsonFiles.map(f => `<li><a href="/data/${f}" target="_blank">${f}</a></li>`).join('')}
+      </ul>
+      <h2>Imágenes</h2>
+      <ul class="file-list">
+        ${images.map(f => `<li><a href="/data/${f}" target="_blank">${f}</a></li>`).join('')}
+      </ul>
+    </section>
+    <section>
+      <h2>Uploads realizados</h2>
+      <ul class="file-list">
+        ${uploadFiles.map(f => `
+          <li>
+            <a href="/uploads/${f}" target="_blank">${f}</a>
+            <form action="/procesar/${encodeURIComponent(f)}" method="post" class="inline">
+              <button type="submit" class="btn btn-warning">Procesar</button>
+            </form>
+          </li>
+        `).join('')}
+      </ul>
+    </section>
+    <section class="cyto-panel">
+      <h2>Visualización interactiva (Cytoscape.js)</h2>
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:1em;">
+        <label for="grafoSelect">Selecciona el grafo:</label>
+        <select id="grafoSelect">
+          ${jsonFiles.map(f => `<option value="${f}">${f}</option>`).join('')}
+        </select>
+        <label for="tablaSelect">Selecciona la tabla a visualizar:</label>
+        <select id="tablaSelect"></select>
+        <label for="columnaFiltro">Filtrar por columna:</label>
+        <select id="columnaFiltro"></select>
+        <input type="text" id="elementoFiltro" placeholder="Buscar elemento...">
+        <button id="btnBuscarElemento" class="btn btn-primary">Buscar</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.5em; max-width: 100vw; overflow-x: hidden; margin-top:1em;">
+        <label for="elementoSelect">Selecciona el elemento:</label>
+        <select id="elementoSelect" style="min-width: 350px; min-height: 3em; font-size: 0.9em; white-space: normal; line-height: 1.3;"></select>
+        <button id="btnVerElemento" class="btn btn-warning">Ver relacionados</button>
+        <button id="btnExpandirNodo" class="btn btn-warning">Expandir nodo</button>
+      </div>
+      <div id="cy"></div>
+      <div id="info"></div>
+    </section>
+  </main>
+  <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+  <script src="/src/Pagina_cyto.js"></script>
+</body>
+</html>
 `;
 
     res.send(html);

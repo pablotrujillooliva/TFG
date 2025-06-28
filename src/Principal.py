@@ -2,7 +2,7 @@
 import ER as ER
 import Dibujo as Dibujo
 import Carga as Carga
-import TFG.src.GraphDB_transform as GraphDB_transform
+import GraphDB_transform as GraphDB_transform
 import os
 
 # Ruta absoluta a la carpeta data en la raíz del proyecto
