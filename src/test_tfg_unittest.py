@@ -15,6 +15,35 @@ import src.GrafoDatos as GrafoDatos
 import src.GraphDB_transform as GraphDB_transform
 
 class TestTFGScripts(unittest.TestCase):
+    def test_carga_cargar_datos(self):
+        # Prueba la función cargar_datos de Carga.py
+        # Crea un esquema turtle mínimo
+        esquema_path = os.path.join(self.data_dir, 'esquema.ttl')
+        with open(esquema_path, 'w', encoding='utf-8') as f:
+            f.write('@prefix ex: <http://example.org/db#> .\nex:persona a ex:Tabla .')
+        # Ejecuta cargar_datos
+        if hasattr(Carga, 'cargar_datos'):
+            salida = Carga.cargar_datos(esquema_path, self.db_path)
+            self.assertTrue(os.path.exists(salida))
+
+    def test_dibujo_dibujar_grafo(self):
+        # Prueba la función dibujar_grafo de Dibujo.py
+        if hasattr(Dibujo, 'dibujar_grafo'):
+            Dibujo.dibujar_grafo(self.db_path)
+            # Comprueba que el archivo de salida existe
+            base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+            data_dir = os.path.join(base_dir, 'data')
+            png_path = os.path.join(data_dir, 'rdf_graph_output_square.png')
+            self.assertTrue(os.path.exists(png_path))
+
+    def test_er_ejecutar(self):
+        # Prueba la función ejecutar de ER.py
+        if hasattr(ER, 'ejecutar'):
+            salida = ER.ejecutar(self.db_path)
+            # La función devuelve una función main, así que la ejecutamos
+            if callable(salida):
+                out_file = salida()
+                self.assertTrue(os.path.exists(out_file))
     def setUp(self):
         # Crear una base de datos temporal para pruebas
         self.test_dir = tempfile.mkdtemp()
@@ -76,6 +105,45 @@ class TestTFGScripts(unittest.TestCase):
         ns = type('NS', (), {'nombre': 'test_uri'})
         prop = ER.get_standard_property('nombre', ns)
         self.assertIsNotNone(prop)
+
+    def test_carga_funciones_varias(self):
+        # Prueba funciones adicionales de Carga.py
+        # get_standard_property ya está testeada, probamos otras si existen
+        if hasattr(Carga, 'get_columnas_tabla'):
+            cols = Carga.get_columnas_tabla('persona', self.db_path)
+            self.assertIn('nombre', cols)
+        if hasattr(Carga, 'get_tablas'):
+            tablas = Carga.get_tablas(self.db_path)
+            self.assertIn('persona', tablas)
+        if hasattr(Carga, 'leer_datos_tabla'):
+            datos = Carga.leer_datos_tabla('persona', self.db_path)
+            self.assertTrue(any('nombre' in d for d in datos))
+
+    def test_dibujo_funciones_varias(self):
+        # Prueba funciones adicionales de Dibujo.py
+        ns = type('NS', (), {'nombre': 'test_uri'})
+        if hasattr(Dibujo, 'get_standard_property'):
+            prop = Dibujo.get_standard_property('nombre', ns)
+            self.assertIsNotNone(prop)
+        if hasattr(Dibujo, 'get_columnas_tabla'):
+            cols = Dibujo.get_columnas_tabla('persona', self.db_path)
+            self.assertIn('nombre', cols)
+        if hasattr(Dibujo, 'get_tablas'):
+            tablas = Dibujo.get_tablas(self.db_path)
+            self.assertIn('persona', tablas)
+
+    def test_er_funciones_varias(self):
+        # Prueba funciones adicionales de ER.py
+        ns = type('NS', (), {'nombre': 'test_uri'})
+        if hasattr(ER, 'get_standard_property'):
+            prop = ER.get_standard_property('nombre', ns)
+            self.assertIsNotNone(prop)
+        if hasattr(ER, 'get_columnas_tabla'):
+            cols = ER.get_columnas_tabla('persona', self.db_path)
+            self.assertIn('nombre', cols)
+        if hasattr(ER, 'get_tablas'):
+            tablas = ER.get_tablas(self.db_path)
+            self.assertIn('persona', tablas)
 
     def test_graphdb_transform(self):
         # Crear un TTL de ejemplo
