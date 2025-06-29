@@ -313,6 +313,11 @@ app.post('/procesar/:filename', (req, res) => {
     const dbFile = req.params.filename;
     const dbPath = path.join(UPLOADS_DIR, dbFile);
 
+    // Si el archivo no existe, responde con error inmediatamente
+    if (!fs.existsSync(dbPath)) {
+        return res.send('Error al procesar la base de datos.<br>Archivo no encontrado.');
+    }
+
     const dbBase = path.basename(dbPath, path.extname(dbPath));
     const grafoJson = `grafo_${dbBase}.json`;
     const grafoDatosJson = `grafo_datos_${dbBase}.json`;
@@ -354,6 +359,10 @@ app.post('/borrar-data', (req, res) => {
 });
 
 const PORT = 3010;
-app.listen(PORT, () => {
-    console.log(`Servidor iniciado en http://localhost:${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Servidor iniciado en http://localhost:${PORT}`);
+    });
+}
+
+module.exports = app;
