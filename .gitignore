@@ -1,6 +1,10 @@
 *.db
 *.pyc
 *.ttl
+grafo*
+datos*
+*.coverage
+coverage*
 package-lock.json
 rdf_graph_*
 node_modules/
