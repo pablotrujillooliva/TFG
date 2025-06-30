@@ -1,0 +1,30 @@
+{
+  "name": "tfg",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pablotrujillooliva/TFG.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pablotrujillooliva/TFG/issues"
+  },
+  "homepage": "https://github.com/pablotrujillooliva/TFG#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "multer": "^2.0.1"
+  },
+  "devDependencies": {
+    "cypress": "^14.5.0",
+    "cypress-file-upload": "^5.0.8",
+    "jest": "^30.0.3",
+    "supertest": "^7.1.1"
+  }
+}

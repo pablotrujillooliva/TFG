@@ -53,6 +53,42 @@ app.get('/', (req, res) => {
       padding: 0;
       color: #222;
     }
+    a:focus, button:focus, input:focus, select:focus {
+      outline: 3px solid #005fa3;
+      outline-offset: 2px;
+      box-shadow: 0 0 0 2px #cce6ff;
+    }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      border: 0;
+    }
+    .skip-link {
+      position: absolute;
+      left: -999px;
+      top: auto;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      z-index: 1000;
+      background: #005fa3;
+      color: #fff;
+      padding: 0.5em 1em;
+      border-radius: 5px;
+    }
+    .skip-link:focus {
+      left: 10px;
+      top: 10px;
+      width: auto;
+      height: auto;
+      font-size: 1.1em;
+      outline: 3px solid #f1c40f;
+    }
     header {
       background: linear-gradient(90deg, #003366 0%, #005fa3 100%);
       color: #fff;
@@ -193,78 +229,97 @@ app.get('/', (req, res) => {
       #cy { height: 350px; }
     }
   </style>
-</head>
-<body>
-  <header>
-    <h1>TFG Visualizador Bases de Datos Relacional</h1>
-    <p style="font-size:1.1em; font-weight:400; margin:0;">Visualiza, transforma y explora tus bases de datos de forma intuitiva</p>
-  </header>
-  <main>
-    <section style="display:flex; gap:2em; flex-wrap:wrap; align-items:center;">
-      <form action="/borrar-data" method="post" onsubmit="return confirm('¿Seguro que quieres borrar TODOS los archivos de data?');">
-        <button type="submit" class="btn btn-danger">Borrar archivos</button>
-      </form>
-      <form action="/upload" method="post" enctype="multipart/form-data" style="display:flex; align-items:center; gap:1em;">
-        <label style="margin:0;">Sube tu base de datos (.db):</label>
-        <input type="file" name="dbfile" accept=".db" required>
-        <button type="submit" class="btn btn-success">Subir y transformar</button>
-      </form>
-    </section>
-    <section>
-      <h2>Archivos TTL</h2>
-      <ul class="file-list">
-        ${ttlFiles.map(f => `<li><a href="/data/${f}" target="_blank">${f}</a></li>`).join('')}
-      </ul>
-      <h2>Archivos JSON</h2>
-      <ul class="file-list">
-        ${jsonFiles.map(f => `<li><a href="/data/${f}" target="_blank">${f}</a></li>`).join('')}
-      </ul>
-      <h2>Imágenes</h2>
-      <ul class="file-list">
-        ${images.map(f => `<li><a href="/data/${f}" target="_blank">${f}</a></li>`).join('')}
-      </ul>
-    </section>
-    <section>
-      <h2>Uploads realizados</h2>
-      <ul class="file-list">
-        ${uploadFiles.map(f => `
-          <li>
-            <a href="/uploads/${f}" target="_blank">${f}</a>
-            <form action="/procesar/${encodeURIComponent(f)}" method="post" class="inline">
-              <button type="submit" class="btn btn-warning">Procesar</button>
-            </form>
-          </li>
-        `).join('')}
-      </ul>
-    </section>
-    <section class="cyto-panel">
-      <h2>Visualización interactiva (Cytoscape.js)</h2>
-      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:1em;">
-        <label for="grafoSelect">Selecciona el grafo:</label>
-        <select id="grafoSelect">
-          ${jsonFiles.map(f => `<option value="${f}">${f}</option>`).join('')}
-        </select>
-        <label for="tablaSelect">Selecciona la tabla a visualizar:</label>
-        <select id="tablaSelect"></select>
-        <label for="columnaFiltro">Filtrar por columna:</label>
-        <select id="columnaFiltro"></select>
-        <input type="text" id="elementoFiltro" placeholder="Buscar elemento...">
-        <button id="btnBuscarElemento" class="btn btn-primary">Buscar</button>
-      </div>
-      <div style="display: flex; align-items: center; gap: 0.5em; max-width: 100vw; overflow-x: hidden; margin-top:1em;">
-        <label for="elementoSelect">Selecciona el elemento:</label>
-        <select id="elementoSelect" style="min-width: 350px; min-height: 3em; font-size: 0.9em; white-space: normal; line-height: 1.3;"></select>
-        <button id="btnVerElemento" class="btn btn-warning">Ver relacionados</button>
-        <button id="btnExpandirNodo" class="btn btn-warning">Expandir nodo</button>
-      </div>
-      <div id="cy"></div>
-      <div id="info"></div>
-    </section>
-  </main>
-  <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
-  <script src="/src/Pagina_cyto.js"></script>
-</body>
-</html>
+
+    <body>
+      <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+      <header>
+        <h1>TFG Visualizador Bases de Datos Relacional</h1>
+        <p style="font-size:1.1em; font-weight:400; margin:0;">Visualiza, transforma y explora tus bases de datos de forma intuitiva</p>
+      </header>
+      <main id="main-content" tabindex="-1">
+        <section style="display:flex; gap:2em; flex-wrap:wrap; align-items:center;">
+          <form action="/borrar-data" method="post" onsubmit="return confirm('¿Seguro que quieres borrar TODOS los archivos de data?');">
+            <button type="submit" class="btn btn-danger" accesskey="b">Borrar archivos</button>
+          </form>
+          <form action="/upload" method="post" enctype="multipart/form-data" style="display:flex; align-items:center; gap:1em;">
+            <label for="dbfile" style="margin:0;">Sube tu base de datos (.db):</label>
+            <input type="file" id="dbfile" name="dbfile" accept=".db" required aria-describedby="dbfile-desc">
+            <span id="dbfile-desc" class="visually-hidden">Selecciona un archivo de base de datos SQLite con extensión .db</span>
+            <button type="submit" class="btn btn-success" accesskey="u">Subir y transformar</button>
+          </form>
+        </section>
+        <section>
+          <h2>Archivos TTL</h2>
+          <ul class="file-list">
+            ${ttlFiles.map(f => `<li><a href="/data/${f}" target="_blank" aria-label="Ver archivo TTL ${f}">${f}</a> <a href="/data/${f}" download class="btn btn-primary" style="margin-left:0.3em; padding:0.2em 0.7em; font-size:0.9em;" aria-label="Descargar archivo TTL ${f}"><span aria-hidden="true">⬇</span><span class="visually-hidden">Descargar</span></a></li>`).join('')}
+          </ul>
+          <h2>Archivos JSON</h2>
+          <ul class="file-list">
+            ${jsonFiles.map(f => `<li><a href="/data/${f}" target="_blank" aria-label="Ver archivo JSON ${f}">${f}</a> <a href="/data/${f}" download class="btn btn-primary" style="margin-left:0.3em; padding:0.2em 0.7em; font-size:0.9em;" aria-label="Descargar archivo JSON ${f}"><span aria-hidden="true">⬇</span><span class="visually-hidden">Descargar</span></a></li>`).join('')}
+          </ul>
+          <h2>Imágenes</h2>
+          <ul class="file-list">
+            ${images.map(f => `<li><a href="/data/${f}" target="_blank" aria-label="Ver imagen ${f}">${f}</a> <a href="/data/${f}" download class="btn btn-primary" style="margin-left:0.3em; padding:0.2em 0.7em; font-size:0.9em;" aria-label="Descargar imagen ${f}"><span aria-hidden="true">⬇</span><span class="visually-hidden">Descargar</span></a></li>`).join('')}
+          </ul>
+        </section>
+        <section>
+          <h2>Uploads realizados</h2>
+          <ul class="file-list">
+            ${uploadFiles.map(f => `
+              <li>
+                <a href="/uploads/${f}" target="_blank" download aria-label="Descargar base de datos subida ${f}">${f}</a>
+                <form action="/procesar/${encodeURIComponent(f)}" method="post" class="inline">
+                  <button type="submit" class="btn btn-warning" accesskey="p">Procesar</button>
+                </form>
+              </li>
+            `).join('')}
+          </ul>
+        </section>
+        <section class="cyto-panel">
+          <h2>Visualización interactiva (Cytoscape.js)</h2>
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:1em;">
+            <label for="grafoSelect">Selecciona el grafo:</label>
+            <select id="grafoSelect">
+              ${jsonFiles.map(f => `<option value="${f}">${f}</option>`).join('')}
+            </select>
+            <label for="tablaSelect">Selecciona la tabla a visualizar:</label>
+            <select id="tablaSelect"></select>
+            <label for="columnaFiltro">Filtrar por columna:</label>
+            <select id="columnaFiltro"></select>
+            <input type="text" id="elementoFiltro" placeholder="Buscar elemento...">
+            <button id="btnBuscarElemento" class="btn btn-primary" accesskey="f">Buscar</button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5em; max-width: 100vw; overflow-x: hidden; margin-top:1em;">
+            <label for="elementoSelect">Selecciona el elemento:</label>
+            <select id="elementoSelect" style="min-width: 350px; min-height: 3em; font-size: 0.9em; white-space: normal; line-height: 1.3;"></select>
+            <button id="btnVerElemento" class="btn btn-warning" accesskey="r">Ver relacionados</button>
+            <button id="btnExpandirNodo" class="btn btn-warning" accesskey="e">Expandir nodo</button>
+          </div>
+          <div id="cy" tabindex="0" aria-label="Visualización de grafo"></div>
+          <div id="info" tabindex="0" aria-live="polite"></div>
+        </section>
+        <div id="error-message" role="alert" aria-live="assertive" style="color:#c0392b; margin-top:1em;"></div>
+      </main>
+      <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+      <script src="/src/Pagina_cyto.js"></script>
+      <script>
+        // Mejorar accesibilidad: mover foco al main al usar skip-link
+        document.querySelector('.skip-link').addEventListener('click', function(e) {
+          setTimeout(function() {
+            var main = document.getElementById('main-content');
+            if(main) main.focus();
+          }, 100);
+        });
+        // Mostrar mensajes de error accesibles si existen en la URL
+        const params = new URLSearchParams(window.location.search);
+        if(params.has('error')) {
+          const msg = decodeURIComponent(params.get('error'));
+          const errorDiv = document.getElementById('error-message');
+          if(errorDiv) errorDiv.textContent = msg;
+        }
+      </script>
+    </body>
+    </html>
 `;
 
     res.send(html);

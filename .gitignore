@@ -1,7 +1,7 @@
 *.db
 *.pyc
 *.ttl
-*.json
+package-lock.json
 rdf_graph_*
 node_modules/
 docs/
