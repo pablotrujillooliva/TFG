@@ -416,7 +416,18 @@ app.post('/borrar-data', (req, res) => {
 const PORT = 3010;
 if (require.main === module) {
     app.listen(PORT, () => {
-        console.log(`Servidor iniciado en http://localhost:${PORT}`);
+        const host = process.env.HOST || '0.0.0.0';
+        const address = app.address ? app.address() : { address: host, port: PORT };
+        let url = '';
+        if (address.address === '0.0.0.0' || address.address === '::') {
+            url = `http://localhost:${address.port}`;
+        } else {
+            url = `http://${address.address}:${address.port}`;
+        }
+        console.log(`Servidor iniciado en ${url}`);
+        if (process.stdout && process.stdout.write) {
+            process.stdout.write(`\n\u001b[32mServidor web disponible en: ${url}\u001b[0m\n`);
+        }
     });
 }
 
