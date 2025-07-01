@@ -15,6 +15,46 @@ import src.GrafoDatos as GrafoDatos
 import src.GraphDB_transform as GraphDB_transform
 
 class TestTFGScripts(unittest.TestCase):
+    def test_carga_columnas_tabla_inexistente(self):
+        # Prueba get_columnas_tabla con una tabla que no existe
+        if hasattr(Carga, 'get_columnas_tabla'):
+            with self.assertRaises(Exception):
+                Carga.get_columnas_tabla('tabla_inexistente', self.db_path)
+
+    def test_dibujo_columnas_tabla_inexistente(self):
+        # Prueba get_columnas_tabla con una tabla que no existe en Dibujo.py
+        if hasattr(Dibujo, 'get_columnas_tabla'):
+            with self.assertRaises(Exception):
+                Dibujo.get_columnas_tabla('tabla_inexistente', self.db_path)
+
+    def test_er_columnas_tabla_inexistente(self):
+        # Prueba get_columnas_tabla con una tabla que no existe en ER.py
+        if hasattr(ER, 'get_columnas_tabla'):
+            with self.assertRaises(Exception):
+                ER.get_columnas_tabla('tabla_inexistente', self.db_path)
+
+    def test_carga_leer_datos_tabla_inexistente(self):
+        # Prueba leer_datos_tabla con una tabla que no existe
+        if hasattr(Carga, 'leer_datos_tabla'):
+            with self.assertRaises(Exception):
+                Carga.leer_datos_tabla('tabla_inexistente', self.db_path)
+
+    def test_grafo_json_invalido(self):
+        # Prueba que Grafo.generar_grafo_json lanza excepción si el archivo no es una base de datos
+        output_json = os.path.join(self.data_dir, 'grafo.json')
+        with open(self.db_path, 'w') as f:
+            f.write('no es una base de datos')
+        with self.assertRaises(Exception):
+            Grafo.generar_grafo_json(self.db_path, output_json)
+
+    def test_graphdb_transform_ttl_invalido(self):
+        # Prueba que GraphDB_transform.main lanza excepción si el TTL es inválido
+        ttl_path = os.path.join(self.data_dir, 'invalido.ttl')
+        with open(ttl_path, 'w', encoding='utf-8') as f:
+            f.write('esto no es un TTL válido')
+        json_path = os.path.join(self.data_dir, 'invalido.json')
+        with self.assertRaises(Exception):
+            GraphDB_transform.main(ttl_path, json_path)
     def test_carga_cargar_datos(self):
         # Prueba la función cargar_datos de Carga.py
         # Crea un esquema turtle mínimo
