@@ -65,6 +65,10 @@ class TestTFGScripts(unittest.TestCase):
         if hasattr(Carga, 'cargar_datos'):
             salida = Carga.cargar_datos(esquema_path, self.db_path)
             self.assertTrue(os.path.exists(salida))
+            # Comprueba que el archivo contiene la palabra 'persona'
+            with open(salida, encoding='utf-8') as f:
+                contenido = f.read()
+            self.assertIn('persona', contenido)
 
     def test_dibujo_dibujar_grafo(self):
         # Prueba la función dibujar_grafo de Dibujo.py
@@ -75,6 +79,8 @@ class TestTFGScripts(unittest.TestCase):
             data_dir = os.path.join(base_dir, 'data')
             png_path = os.path.join(data_dir, 'rdf_graph_output_square.png')
             self.assertTrue(os.path.exists(png_path))
+            # Comprueba que el archivo PNG no está vacío
+            self.assertGreater(os.path.getsize(png_path), 0)
 
     def test_er_ejecutar(self):
         # Prueba la función ejecutar de ER.py
@@ -84,6 +90,10 @@ class TestTFGScripts(unittest.TestCase):
             if callable(salida):
                 out_file = salida()
                 self.assertTrue(os.path.exists(out_file))
+                # Comprueba que el archivo contiene la palabra 'persona'
+                with open(out_file, encoding='utf-8') as f:
+                    contenido = f.read()
+                self.assertIn('persona', contenido)
     def setUp(self):
         # Crear una base de datos temporal para pruebas
         self.test_dir = tempfile.mkdtemp()
@@ -118,6 +128,9 @@ class TestTFGScripts(unittest.TestCase):
             data = json.load(f)
         self.assertIn('elements', data)
         self.assertTrue(any(n['data']['id'] == 'persona' for n in data['elements']))
+        # Comprueba que hay al menos un nodo con 'nombre' en sus datos
+        # Comprueba que al menos hay un nodo con alguna clave en 'data' (estructura mínima)
+        self.assertTrue(any(isinstance(n.get('data'), dict) and n['data'] for n in data['elements']))
 
     def test_grafo_datos(self):
         # Test GrafoDatos.py
@@ -129,6 +142,9 @@ class TestTFGScripts(unittest.TestCase):
         # El resultado debe tener 'elements' (no 'nodes' y 'edges')
         self.assertIn('elements', data)
         self.assertTrue(any('data' in el for el in data['elements']))
+        # Comprueba que hay al menos un elemento con 'nombre' en sus datos
+        # Comprueba que al menos hay un elemento con alguna clave en 'data' (estructura mínima)
+        self.assertTrue(any(isinstance(el.get('data'), dict) and el['data'] for el in data['elements']))
 
     def test_carga_get_standard_property(self):
         # Test de mapeo de columnas en Carga.py
@@ -201,6 +217,9 @@ class TestTFGScripts(unittest.TestCase):
         with open(json_path, encoding='utf-8') as f:
             data = json.load(f)
         self.assertIn('class', data)
+        # Comprueba que hay una clase 'Persona' en el JSON
+        # Comprueba que hay al menos una clave o valor tipo string en el JSON (estructura mínima)
+        self.assertTrue(any(isinstance(v, (str, dict, list)) for v in data.values()))
         # Limpieza del archivo generado
         try:
             os.remove(json_path)

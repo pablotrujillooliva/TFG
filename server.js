@@ -25,10 +25,11 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Servir archivos estáticos (imágenes, ttl, json)
+// Servir archivos estáticos (imágenes, ttl, json, uploads)
 app.use('/webvowl', express.static(path.join(__dirname, '/webvowl')));
 app.use('/data', express.static(DATA_DIR));
 app.use('/src', express.static(SRC_DIR));
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Página principal con formulario de subida
 app.get('/', (req, res) => {
@@ -342,21 +343,22 @@ app.post('/upload', upload.single('dbfile'), (req, res) => {
         console.log(stdout);
         console.error(stderr);
         if (error) {
-            return res.send('Error al procesar la base de datos.<br>' + stderr);
+            // Siempre redirige aunque haya error, mostrando el error en la página principal
+            return res.redirect('/?error=' + encodeURIComponent('Error al procesar la base de datos. ' + stderr));
         }
         // Ejecuta Grafo.py
         exec(`python "${path.join(SRC_DIR, 'Grafo.py')}" "${dbPath}" "${grafoJson}"`, { cwd: SRC_DIR }, (error2, stdout2, stderr2) => {
             console.log(stdout2);
             console.error(stderr2);
             if (error2) {
-                return res.send('Error al generar grafo.json.<br>' + stderr2);
+                return res.redirect('/?error=' + encodeURIComponent('Error al generar grafo.json. ' + stderr2));
             }
             // Ejecuta GrafoDatos.py
             exec(`python "${path.join(SRC_DIR, 'GrafoDatos.py')}" "${dbPath}" "${grafoDatosJson}"`, { cwd: SRC_DIR }, (error3, stdout3, stderr3) => {
                 console.log(stdout3);
                 console.error(stderr3);
                 if (error3) {
-                    return res.send('Error al generar grafo_datos.json.<br>' + stderr3);
+                    return res.redirect('/?error=' + encodeURIComponent('Error al generar grafo_datos.json. ' + stderr3));
                 }
                 res.redirect('/');
             });
@@ -401,6 +403,16 @@ app.post('/procesar/:filename', (req, res) => {
     });
 });
 
+
+// Solo permite POST en /borrar-data, cualquier otro método devuelve 405 Method Not Allowed
+app.all('/borrar-data', (req, res, next) => {
+  if (req.method !== 'POST') {
+    res.set('Allow', 'POST');
+    return res.status(405).send('Method Not Allowed');
+  }
+  next();
+});
+
 app.post('/borrar-data', (req, res) => {
     const files = fs.readdirSync(DATA_DIR);
     files.forEach(f => {
@@ -411,6 +423,13 @@ app.post('/borrar-data', (req, res) => {
         fs.unlinkSync(path.join(UPLOADS_DIR, f));
     });
     res.redirect('/');
+});
+
+// Ruta para mostrar un listado HTML de los archivos en la carpeta /data/
+// Esto permite que GET /data/ devuelva un listado simple de archivos, útil para tests y depuración
+app.get('/data/', (req, res) => {
+  const files = fs.readdirSync(DATA_DIR);
+  res.send('<ul>' + files.map(f => `<li>${f}</li>`).join('') + '</ul>');
 });
 
 const PORT = 3010;

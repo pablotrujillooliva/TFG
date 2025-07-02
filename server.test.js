@@ -6,6 +6,37 @@ beforeAll(() => {
 });
 
 describe('TFG Visualizador API', () => {
+  // POST /procesar/:filename correcto (usando archivo SQLite real)
+  test('POST /procesar/:filename con archivo SQLite real', async () => {
+    // Creamos un archivo SQLite válido en memoria
+    const sqlite3 = require('sqlite3').verbose();
+    const fs = require('fs');
+    const path = require('path');
+    const tmpDbPath = path.join(__dirname, 'uploads', 'test_valid.db');
+    // Aseguramos que el directorio existe
+    fs.mkdirSync(path.dirname(tmpDbPath), { recursive: true });
+    // Creamos la base de datos y una tabla mínima
+    await new Promise((resolve, reject) => {
+      const db = new sqlite3.Database(tmpDbPath, (err) => {
+        if (err) return reject(err);
+        db.run('CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT);', (err2) => {
+          db.close();
+          if (err2) return reject(err2);
+          resolve();
+        });
+      });
+    });
+    // Leemos el archivo SQLite generado
+    const dbBuffer = fs.readFileSync(tmpDbPath);
+    // Subimos el archivo
+    await request(app)
+      .post('/upload')
+      .attach('dbfile', dbBuffer, 'test_valid.db');
+    // Procesamos el archivo
+    const res = await request(app)
+      .post('/procesar/test_valid.db');
+    expect(res.statusCode).toBe(302);
+  });
 
 
   // GET / correcto
@@ -29,17 +60,39 @@ describe('TFG Visualizador API', () => {
   });
 
   // POST /borrar-data error (método incorrecto)
-  test('GET /borrar-data con método incorrecto devuelve 404 o 405', async () => {
+  test('GET /borrar-data con método incorrecto devuelve 405', async () => {
     const res = await request(app).get('/borrar-data');
-    expect([404, 405]).toContain(res.statusCode);
+    expect(res.statusCode).toBe(405);
   });
 
+  // Utilidad para crear un archivo SQLite válido y devolver su buffer y nombre
+  async function crearArchivoSQLite(nombre = 'test_valid.db') {
+    const sqlite3 = require('sqlite3').verbose();
+    const fs = require('fs');
+    const path = require('path');
+    const tmpDbPath = path.join(__dirname, 'uploads', nombre);
+    fs.mkdirSync(path.dirname(tmpDbPath), { recursive: true });
+    await new Promise((resolve, reject) => {
+      const db = new sqlite3.Database(tmpDbPath, (err) => {
+        if (err) return reject(err);
+        db.run('CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT);', (err2) => {
+          db.close();
+          if (err2) return reject(err2);
+          resolve();
+        });
+      });
+    });
+    const dbBuffer = fs.readFileSync(tmpDbPath);
+    return { dbBuffer, nombre };
+  }
+
   // POST /upload correcto
-  test('POST /upload con archivo .db simulado devuelve redirección o 200', async () => {
+  test('POST /upload con archivo .db válido devuelve redirección', async () => {
+    const { dbBuffer, nombre } = await crearArchivoSQLite('test_valid.db');
     const res = await request(app)
       .post('/upload')
-      .attach('dbfile', Buffer.from('dummy'), 'test.db');
-    expect([200, 302]).toContain(res.statusCode);
+      .attach('dbfile', dbBuffer, nombre);
+    expect(res.statusCode).toBe(302);
   });
 
   // POST /upload error (sin archivo)
@@ -49,18 +102,6 @@ describe('TFG Visualizador API', () => {
       .type('form')
       .field('dummy', 'value');
     expect(res.text).toContain('No se subió ningún archivo');
-  });
-
-  // POST /procesar/:filename correcto (usando archivo dummy)
-  test('POST /procesar/:filename con archivo válido simulado', async () => {
-    // Primero subimos un archivo
-    await request(app)
-      .post('/upload')
-      .attach('dbfile', Buffer.from('dummy'), 'test.db');
-    const res = await request(app)
-      .post('/procesar/test.db');
-    // Puede devolver 200 o redirección si el procesamiento es correcto
-    expect([200, 302]).toContain(res.statusCode);
   });
 
   // POST /procesar/:filename error (archivo inexistente)
@@ -96,13 +137,14 @@ describe('TFG Visualizador API', () => {
     expect(res.statusCode).toBe(404);
   });
 
-  // GET /uploads/test.db correcto (después de subir)
-  test('GET /uploads/test.db devuelve 200 o 404 después de subir', async () => {
+  // GET /uploads/test_valid.db correcto (después de subir)
+  test('GET /uploads/test_valid.db devuelve 200 después de subir', async () => {
+    const { dbBuffer, nombre } = await crearArchivoSQLite('test_valid.db');
     await request(app)
       .post('/upload')
-      .attach('dbfile', Buffer.from('dummy'), 'test.db');
-    const res = await request(app).get('/uploads/test.db');
-    expect([200, 404]).toContain(res.statusCode);
+      .attach('dbfile', dbBuffer, nombre);
+    const res = await request(app).get('/uploads/test_valid.db');
+    expect(res.statusCode).toBe(200);
   });
 
   // GET /src/Pagina_cyto.js correcto (si existe)
@@ -125,20 +167,16 @@ describe('TFG Visualizador API', () => {
   });
 
   // GET /data/ correcto (listado de archivos)
-  test('GET /data/ devuelve HTML o 404 si existe', async () => {
+  test('GET /data/ devuelve HTML con listado de archivos si existe', async () => {
     const fs = require('fs');
     const path = require('path');
     const dirPath = path.join(__dirname, 'data');
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
+    fs.mkdirSync(dirPath, { recursive: true });
     // Creamos un archivo para que haya contenido
     fs.writeFileSync(path.join(dirPath, 'dummy.txt'), 'contenido', 'utf8');
     const res = await request(app).get('/data/');
-    expect([200, 404]).toContain(res.statusCode);
-    if (res.statusCode === 200) {
-      expect(res.text).toMatch(/dummy.txt/);
-    }
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toMatch(/dummy.txt/);
   });
 
   // GET /data/ error (directorio inexistente)
