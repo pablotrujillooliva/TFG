@@ -1,4 +1,4 @@
-*.db
+db
 *.pyc
 *.ttl
 grafo*
@@ -9,4 +9,5 @@ package-lock.json
 rdf_graph_*
 node_modules/
 docs/
+uploads/
 *.txt
